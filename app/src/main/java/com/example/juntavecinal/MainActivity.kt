@@ -20,12 +20,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
+import com.example.juntavecinal.ui.sreens.HomeScreen
+import com.example.juntavecinal.ui.sreens.ProfileScreen
 import com.example.juntavecinal.ui.theme.JuntaVecinalTheme
+import com.example.juntavecinal.ui.sreens.LoginScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -42,37 +43,47 @@ class MainActivity : ComponentActivity() {
 @PreviewScreenSizes
 @Composable
 fun JuntaVecinalApp() {
+    var isLoggedIn by rememberSaveable { mutableStateOf(false) }
     var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
 
-    NavigationSuiteScaffold(
-        navigationSuiteItems = {
-            AppDestinations.entries.forEach {
-                item(
-                    icon = {
-                        Icon(
-                            imageVector = it.icon,
-                            contentDescription = it.label
-                        )
-                    },
-                    label = { Text(it.label) },
-                    selected = it == currentDestination,
-                    onClick = { currentDestination = it }
-                )
-            }
-        }
-    ) {
+    if (!isLoggedIn) {
         Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-            val screenModifier = Modifier.padding(innerPadding)
-
-            when (currentDestination) {
-                AppDestinations.HOME -> HomeScreen(modifier = screenModifier)
-                AppDestinations.FAVORITES -> {
-                    Text(
-                        text = "ESTO LO VAMOS A CAMBIAR TODAVIA NO SE POR QUE COSA PERO LO HAREMOS!!!",
-                        modifier = screenModifier.padding(16.dp)
+            LoginScreen(
+                onLoginSuccess = { isLoggedIn = true },
+                modifier = Modifier.padding(innerPadding)
+            )
+        }
+    } else {
+        NavigationSuiteScaffold(
+            navigationSuiteItems = {
+                AppDestinations.entries.forEach {
+                    item(
+                        icon = {
+                            Icon(
+                                imageVector = it.icon,
+                                contentDescription = it.label
+                            )
+                        },
+                        label = { Text(it.label) },
+                        selected = it == currentDestination,
+                        onClick = { currentDestination = it }
                     )
                 }
-                AppDestinations.PROFILE -> ProfileScreen(modifier = screenModifier)
+            }
+        ) {
+            Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+                val screenModifier = Modifier.padding(innerPadding)
+
+                when (currentDestination) {
+                    AppDestinations.HOME -> HomeScreen(modifier = screenModifier)
+                    AppDestinations.FAVORITES -> {
+                        Text(
+                            text = "ESTO LO VAMOS A CAMBIAR TODAVIA NO SE POR QUE COSA PERO LO HAREMOS!!!",
+                            modifier = screenModifier.padding(16.dp)
+                        )
+                    }
+                    AppDestinations.PROFILE -> ProfileScreen(modifier = screenModifier)
+                }
             }
         }
     }
