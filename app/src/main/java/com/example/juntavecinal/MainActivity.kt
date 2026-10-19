@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
@@ -23,10 +23,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
-import com.example.juntavecinal.ui.sreens.HomeScreen
-import com.example.juntavecinal.ui.sreens.ProfileScreen
+import com.example.juntavecinal.ui.screens.HomeScreen
+import com.example.juntavecinal.ui.screens.ProfileScreen
 import com.example.juntavecinal.ui.theme.JuntaVecinalTheme
-import com.example.juntavecinal.ui.sreens.LoginScreen
+import com.example.juntavecinal.ui.screens.LoginScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -76,13 +76,13 @@ fun JuntaVecinalApp() {
 
                 when (currentDestination) {
                     AppDestinations.HOME -> HomeScreen(modifier = screenModifier)
-                    AppDestinations.FAVORITES -> {
+                    AppDestinations.RESERVAS -> {
                         Text(
-                            text = "ESTO LO VAMOS A CAMBIAR TODAVIA NO SE POR QUE COSA PERO LO HAREMOS!!!",
+                            text = "Reservas",
                             modifier = screenModifier.padding(16.dp)
                         )
                     }
-                    AppDestinations.PROFILE -> ProfileScreen(modifier = screenModifier)
+                    AppDestinations.PERFIL -> ProfileScreen(modifier = screenModifier)
                 }
             }
         }
@@ -93,7 +93,7 @@ enum class AppDestinations(
     val label: String,
     val icon: ImageVector,
 ) {
-    HOME("Home", Icons.Filled.Home),
-    FAVORITES("Favorites", Icons.Filled.Favorite),
-    PROFILE("Profile", Icons.Filled.AccountCircle),
+    HOME("Página Principal", Icons.Filled.Home),
+    RESERVAS("Reservas", Icons.Filled.CalendarMonth),
+    PERFIL("Perfil", Icons.Filled.AccountCircle),
 }
