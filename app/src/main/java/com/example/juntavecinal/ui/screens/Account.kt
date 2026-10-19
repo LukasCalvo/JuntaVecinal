@@ -1,4 +1,4 @@
-package com.example.juntavecinal.ui.sreens
+package com.example.juntavecinal.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column

@@ -23,10 +23,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
-import com.example.juntavecinal.ui.sreens.HomeScreen
-import com.example.juntavecinal.ui.sreens.ProfileScreen
+import com.example.juntavecinal.ui.screens.HomeScreen
+import com.example.juntavecinal.ui.screens.ProfileScreen
 import com.example.juntavecinal.ui.theme.JuntaVecinalTheme
-import com.example.juntavecinal.ui.sreens.LoginScreen
+import com.example.juntavecinal.ui.screens.LoginScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
