@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.Icon
@@ -27,6 +28,8 @@ import com.example.juntavecinal.ui.screens.HomeScreen
 import com.example.juntavecinal.ui.screens.ProfileScreen
 import com.example.juntavecinal.ui.theme.JuntaVecinalTheme
 import com.example.juntavecinal.ui.screens.LoginScreen
+import com.example.juntavecinal.ui.screens.ReservaFormScreen
+import com.example.juntavecinal.ui.screens.ReservaListScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -56,7 +59,7 @@ fun JuntaVecinalApp() {
     } else {
         NavigationSuiteScaffold(
             navigationSuiteItems = {
-                AppDestinations.entries.forEach {
+                AppDestinations.entries.filter { it.enBarra }.forEach {
                     item(
                         icon = {
                             Icon(
@@ -76,12 +79,14 @@ fun JuntaVecinalApp() {
 
                 when (currentDestination) {
                     AppDestinations.HOME -> HomeScreen(modifier = screenModifier)
-                    AppDestinations.RESERVAS -> {
-                        Text(
-                            text = "Reservas",
-                            modifier = screenModifier.padding(16.dp)
-                        )
-                    }
+                    AppDestinations.RESERVAS -> ReservaListScreen(        // texto de relleno → pantalla real
+                        onNuevaReserva = { currentDestination = AppDestinations.FORM_RESERVA },
+                        modifier = screenModifier
+                    )
+                    AppDestinations.FORM_RESERVA -> ReservaFormScreen(
+                        onReservaCreada = { currentDestination = AppDestinations.RESERVAS },
+                        modifier = screenModifier
+                    )
                     AppDestinations.PERFIL -> ProfileScreen(modifier = screenModifier)
                 }
             }
@@ -92,8 +97,10 @@ fun JuntaVecinalApp() {
 enum class AppDestinations(
     val label: String,
     val icon: ImageVector,
+    val enBarra: Boolean = true,
 ) {
     HOME("Página Principal", Icons.Filled.Home),
     RESERVAS("Reservas", Icons.Filled.CalendarMonth),
+    FORM_RESERVA("Nueva reserva", Icons.Filled.Add, enBarra = false),
     PERFIL("Perfil", Icons.Filled.AccountCircle),
 }

@@ -12,14 +12,13 @@ class ReservaRepository(private val dao: ReservaDao) {
     fun delUsuario(usuarioId: Int): Flow<List<Reserva>> = dao.observeByUser(usuarioId)
 
     suspend fun guardar(reserva: Reserva): String? {
-        val delDia = dao.buscarPorDia(reserva.dependencia.name, reserva.fecha)
+        val delDia = dao.buscarPorDia(reserva.fecha)
         val solapada = delDia.any {
             it.estado != EstadoReserva.CANCELADA &&
-                    reserva.horaInicio < it.horaFin && it.horaInicio < reserva.horaFin
+                    reserva.horaInicioMin < it.horaFinMin &&
+                    it.horaInicioMin < reserva.horaFinMin
         }
-        if (solapada) {
-            return "Ese horario ya está reservado para ${reserva.dependencia.displayName}"
-        }
+        if (solapada) return "Ese horario ya está reservado."
         dao.insert(reserva)
         return null
     }
