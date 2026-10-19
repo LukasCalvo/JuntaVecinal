@@ -79,7 +79,7 @@ fun JuntaVecinalApp() {
 
                 when (currentDestination) {
                     AppDestinations.HOME -> HomeScreen(modifier = screenModifier)
-                    AppDestinations.RESERVAS -> ReservaListScreen(        // texto de relleno → pantalla real
+                    AppDestinations.RESERVAS -> ReservaListScreen(
                         onNuevaReserva = { currentDestination = AppDestinations.FORM_RESERVA },
                         modifier = screenModifier
                     )
