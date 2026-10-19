@@ -16,8 +16,8 @@ interface ReservaDao {
     @Query("SELECT * FROM reservas WHERE usuarioId = :usuarioId ORDER BY fecha DESC")
     fun observeByUser(usuarioId: Int): Flow<List<Reserva>>
 
-    @Query("SELECT * FROM reservas WHERE dependencia = :dependencia AND fecha = :fecha")
-    suspend fun buscarPorDia(dependencia: String, fecha: Long): List<Reserva>
+    @Query("SELECT * FROM reservas WHERE fecha = :fecha")
+    suspend fun buscarPorDia(fecha: Long): List<Reserva>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(reserva: Reserva)

@@ -9,7 +9,7 @@ import com.example.juntavecinal.model.dao.UsuarioDao
 import com.example.juntavecinal.model.entity.Usuario
 import com.example.juntavecinal.model.entity.Reserva
 
-@Database(entities = [Usuario::class, Reserva::class], version = 2, exportSchema = false)
+@Database(entities = [Usuario::class, Reserva::class], version = 3, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun usuarioDao(): UsuarioDao
     abstract fun reservaDao(): ReservaDao
@@ -23,7 +23,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "junta_vecinal.db"
                 )
-                    .fallbackToDestructiveMigration()
+                    .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()
                     .also { INSTANCE = it }
             }
