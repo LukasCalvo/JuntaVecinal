@@ -8,8 +8,11 @@ import com.example.juntavecinal.model.dao.ReservaDao
 import com.example.juntavecinal.model.dao.UsuarioDao
 import com.example.juntavecinal.model.entity.Usuario
 import com.example.juntavecinal.model.entity.Reserva
-
-@Database(entities = [Usuario::class, Reserva::class], version = 3, exportSchema = false)
+    /*
+    Si se modifica algun dato relacionado con la base de datos (cualquier model)
+    es necesario cambiar la version a una superior para que reinicie las base de datos
+     */
+@Database(entities = [Usuario::class, Reserva::class], version = 5, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun usuarioDao(): UsuarioDao
     abstract fun reservaDao(): ReservaDao

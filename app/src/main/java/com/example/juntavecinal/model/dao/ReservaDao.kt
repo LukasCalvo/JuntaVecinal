@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ReservaDao {
-    @Query("SELECT * FROM reservas ORDER BY fecha DESC, horaInicio ASC")
+    @Query("SELECT * FROM reservas ORDER BY fecha DESC, horaInicioMin ASC")
     fun observeAll(): Flow<List<Reserva>>
 
     @Query("SELECT * FROM reservas WHERE usuarioId = :usuarioId ORDER BY fecha DESC")
