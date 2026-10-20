@@ -1,4 +1,4 @@
-package com.example.juntavecinal.model.entity
+package com.example.juntavecinal.model
 
 data class ReservaForm(
     val nombre: String = "",

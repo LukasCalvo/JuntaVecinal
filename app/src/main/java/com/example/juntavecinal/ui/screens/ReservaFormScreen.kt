@@ -21,8 +21,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material.icons.outlined.Error
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
@@ -52,6 +50,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.juntavecinal.ui.components.CampoFormateado
+import com.example.juntavecinal.ui.components.SelectableDiasDesde
+import com.example.juntavecinal.ui.components.iconoCampo
 import com.example.juntavecinal.viewmodel.ReservaFormViewModel
 
 /** Cuál de los dos selectores de hora está abierto. */
@@ -66,6 +67,7 @@ fun ReservaFormScreen(
 ) {
     val formulario by viewModel.formulario.collectAsState()
     val errores by viewModel.errores.collectAsState()
+    val tocados by viewModel.tocados.collectAsState()
     val guardando by viewModel.guardando.collectAsState()
     val guardado by viewModel.guardado.collectAsState()
     val mensajeGeneral by viewModel.mensajeGeneral.collectAsState()
@@ -99,23 +101,26 @@ fun ReservaFormScreen(
             singleLine = true,
             isError = errores.nombre != null,
             supportingText = { errores.nombre?.let { Text(it) } },
-            leadingIcon = iconoCampo(error = errores.nombre, valido = formulario.nombre.isNotBlank())
+            leadingIcon = iconoCampo(
+                error = errores.nombre,
+                valido = tocados.nombre && errores.nombre == null && formulario.nombre.isNotBlank()
+            )
         )
 
         // ----- Fecha (Date): se escribe o se elige del calendario -----
-        OutlinedTextField(
-            value = formulario.fechaTexto,
-            onValueChange = viewModel::actualizarFechaTexto,
-            label = { Text("Fecha (DD/MM/AAAA)") },
-            placeholder = { Text("25/12/2026") },
+        CampoFormateado(
+            valor = formulario.fechaTexto,
+            onValorChange = viewModel::actualizarFechaTexto,
+            formatear = viewModel::formatearFechaEntrada,
+            label = "Fecha (DD/MM/AAAA)",
+            placeholder = "25/12/2026",
             modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             isError = errores.fecha != null,
-            supportingText = { errores.fecha?.let { Text(it) } },
+            supportingText = errores.fecha,
             leadingIcon = iconoCampo(
                 error = errores.fecha,
-                valido = formulario.fechaTexto.isNotBlank()
+                valido = tocados.fecha && errores.fecha == null &&
+                        viewModel.textoAFecha(formulario.fechaTexto) != null
             ),
             trailingIcon = {
                 IconButton(onClick = { mostrarDatePicker = true }) {
@@ -126,32 +131,40 @@ fun ReservaFormScreen(
 
         // ----- Horas (HH:MM): se escriben o se eligen del reloj -----
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedTextField(
-                value = formulario.horaInicioTexto,
-                onValueChange = viewModel::actualizarHoraInicioTexto,
-                label = { Text("Hora inicio") },
-                placeholder = { Text("HH:MM") },
+            CampoFormateado(
+                valor = formulario.horaInicioTexto,
+                onValorChange = viewModel::actualizarHoraInicioTexto,
+                formatear = viewModel::formatearHoraEntrada,
+                label = "Hora inicio",
+                placeholder = "HH:MM",
                 modifier = Modifier.weight(1f),
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 isError = errores.horaInicio != null,
-                supportingText = { errores.horaInicio?.let { Text(it) } },
+                supportingText = errores.horaInicio,
+                leadingIcon = iconoCampo(
+                    error = errores.horaInicio,
+                    valido = tocados.horaInicio && errores.horaInicio == null &&
+                            viewModel.textoAMinutos(formulario.horaInicioTexto) != null
+                ),
                 trailingIcon = {
                     IconButton(onClick = { horaEnEdicion = CampoHora.INICIO }) {
                         Icon(Icons.Filled.Schedule, contentDescription = "Elegir hora de inicio")
                     }
                 }
             )
-            OutlinedTextField(
-                value = formulario.horaFinTexto,
-                onValueChange = viewModel::actualizarHoraFinTexto,
-                label = { Text("Hora término") },
-                placeholder = { Text("HH:MM") },
+            CampoFormateado(
+                valor = formulario.horaFinTexto,
+                onValorChange = viewModel::actualizarHoraFinTexto,
+                formatear = viewModel::formatearHoraEntrada,
+                label = "Hora término",
+                placeholder = "HH:MM",
                 modifier = Modifier.weight(1f),
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 isError = errores.horaFin != null,
-                supportingText = { errores.horaFin?.let { Text(it) } },
+                supportingText = errores.horaFin,
+                leadingIcon = iconoCampo(
+                    error = errores.horaFin,
+                    valido = tocados.horaFin && errores.horaFin == null &&
+                            viewModel.textoAMinutos(formulario.horaFinTexto) != null
+                ),
                 trailingIcon = {
                     IconButton(onClick = { horaEnEdicion = CampoHora.FIN }) {
                         Icon(Icons.Filled.Schedule, contentDescription = "Elegir hora de término")
@@ -175,7 +188,11 @@ fun ReservaFormScreen(
                         ?: "Entre 1 y ${ReservaFormViewModel.MAX_ASISTENTES} personas"
                 )
             },
-            leadingIcon = iconoCampo(error = errores.asistentes, valido = false)
+            leadingIcon = iconoCampo(
+                error = errores.asistentes,
+                valido = tocados.asistentes && errores.asistentes == null &&
+                        formulario.asistentes.isNotBlank()
+            )
         )
 
         // ----- Observaciones (String) -----
@@ -189,13 +206,13 @@ fun ReservaFormScreen(
             supportingText = { errores.observaciones?.let { Text(it) } }
         )
 
-        // ----- Switch: montaje -----
+        // ----- Switch: proyector -----
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Requiere un proyector")
+            Text("Requiere proyector")
             Switch(
                 checked = formulario.requiereProyector,
                 onCheckedChange = viewModel::actualizarRequiereProyector
@@ -258,8 +275,14 @@ fun ReservaFormScreen(
 
     // ----- Calendario -----
     if (mostrarDatePicker) {
+        val hoy = viewModel.inicioDeHoy()
+        if (formulario.fechaTexto.isBlank()) {
+            viewModel.actualizarFechaTexto(viewModel.fechaATexto(hoy))
+        }
+
         val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = viewModel.textoAFecha(formulario.fechaTexto)
+            initialSelectedDateMillis = viewModel.textoAFecha(formulario.fechaTexto) ?: hoy,
+            selectableDates = SelectableDiasDesde(hoy)
         )
         DatePickerDialog(
             onDismissRequest = { mostrarDatePicker = false },
@@ -285,7 +308,6 @@ fun ReservaFormScreen(
             if (campo == CampoHora.INICIO) formulario.horaInicioTexto
             else formulario.horaFinTexto
         val minutosActuales = viewModel.textoAMinutos(textoActual) ?: (8 * 60)
-        // rememberTimePickerState(initialHour, initialMinute, is24Hour)
         val timePickerState = rememberTimePickerState(
             minutosActuales / 60,
             minutosActuales % 60,
@@ -308,31 +330,4 @@ fun ReservaFormScreen(
             }
         )
     }
-}
-
-/** Ícono de estado del campo: error o válido (requisito de íconos). */
-@Composable
-private fun iconoCampo(
-    error: String?,
-    valido: Boolean
-): (@Composable () -> Unit)? = when {
-    error != null -> {
-        {
-            Icon(
-                imageVector = Icons.Outlined.Error,
-                contentDescription = "Campo con error",
-                tint = MaterialTheme.colorScheme.error
-            )
-        }
-    }
-    valido -> {
-        {
-            Icon(
-                imageVector = Icons.Outlined.CheckCircle,
-                contentDescription = "Campo válido",
-                tint = MaterialTheme.colorScheme.primary
-            )
-        }
-    }
-    else -> null
 }

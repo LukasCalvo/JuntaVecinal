@@ -1,5 +1,6 @@
 package com.example.juntavecinal.model.repository
 
+import com.example.juntavecinal.util.Rut
 import com.example.juntavecinal.model.dao.UsuarioDao
 import com.example.juntavecinal.model.entity.Usuario
 import java.security.MessageDigest
@@ -18,27 +19,41 @@ class UsuarioRepository(private val dao: UsuarioDao) {
     }
 
     /** Crea un usuario con la clave cifrada. Devuelve false si el RUT ya existe. */
-    suspend fun crearUsuario(rut: String, nombre: String, password: String): Boolean {
+    suspend fun crearUsuario(
+        rut: String,
+        nombre: String,
+        telefono: String,
+        region: String,
+        comuna: String,
+        password: String
+    ): Boolean {
         val salt = generarSalt()
         val usuario = Usuario(
             rut = normalizarRut(rut),
             nombre = nombre,
+            telefono = telefono,
+            region = region,
+            comuna = comuna,
             passwordHash = hash(password, salt),
             salt = salt
         )
         return dao.insertar(usuario) != -1L
     }
 
-    /** Crea usuarios de prueba solo si la tabla está vacía. */
     suspend fun sembrarUsuariosDePrueba() {
         if (dao.contar() == 0) {
-            crearUsuario("12345678-5", "Presidente Junta", "admin123")
-            crearUsuario("98765432-1", "Vecino Demo", "vecino123")
+            crearUsuario(
+                "11.111.111-1", "Presidente Junta", "9 1111 1111",
+                "Región Metropolitana", "Santiago", "admin123"
+            )
+            crearUsuario(
+                "22.222.222-2", "Vecino Demo", "9 2222 2222",
+                "Región Metropolitana", "Ñuñoa", "vecino123"
+            )
         }
     }
 
-    private fun normalizarRut(rut: String): String =
-        rut.replace(".", "").replace(" ", "").uppercase()
+    private fun normalizarRut(rut: String): String = Rut.normalizar(rut)
 
     private fun generarSalt(): String {
         val bytes = ByteArray(16)

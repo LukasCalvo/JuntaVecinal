@@ -9,6 +9,9 @@ data class Usuario(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val rut: String,
     val nombre: String,
+    val telefono: String,
+    val region: String,
+    val comuna: String,
     val passwordHash: String,
     val salt: String
 )

@@ -1,7 +1,6 @@
 package com.example.juntavecinal.model.repository
 
 import com.example.juntavecinal.model.dao.ReservaDao
-import com.example.juntavecinal.model.entity.EstadoReserva
 import com.example.juntavecinal.model.entity.Reserva
 import kotlinx.coroutines.flow.Flow
 
@@ -14,17 +13,13 @@ class ReservaRepository(private val dao: ReservaDao) {
     suspend fun guardar(reserva: Reserva): String? {
         val delDia = dao.buscarPorDia(reserva.fecha)
         val solapada = delDia.any {
-            it.estado != EstadoReserva.CANCELADA &&
-                    reserva.horaInicioMin < it.horaFinMin &&
-                    it.horaInicioMin < reserva.horaFinMin
+            reserva.horaInicioMin < it.horaFinMin &&
+            it.horaInicioMin < reserva.horaFinMin
         }
         if (solapada) return "Ese horario ya está reservado."
         dao.insert(reserva)
         return null
     }
-
-    suspend fun cambiarEstado(id: Int, estado: EstadoReserva) =
-        dao.updateEstado(id, estado.name)
 
     suspend fun eliminar(reserva: Reserva) = dao.delete(reserva)
 }
