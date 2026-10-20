@@ -21,8 +21,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material.icons.outlined.Error
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
@@ -49,11 +47,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.juntavecinal.ui.components.CampoFormateado
+import com.example.juntavecinal.ui.components.SelectableDiasDesde
+import com.example.juntavecinal.ui.components.iconoCampo
 import com.example.juntavecinal.viewmodel.ReservaFormViewModel
 
 /** Cuál de los dos selectores de hora está abierto. */
@@ -68,6 +67,7 @@ fun ReservaFormScreen(
 ) {
     val formulario by viewModel.formulario.collectAsState()
     val errores by viewModel.errores.collectAsState()
+    val tocados by viewModel.tocados.collectAsState()
     val guardando by viewModel.guardando.collectAsState()
     val guardado by viewModel.guardado.collectAsState()
     val mensajeGeneral by viewModel.mensajeGeneral.collectAsState()
@@ -101,7 +101,10 @@ fun ReservaFormScreen(
             singleLine = true,
             isError = errores.nombre != null,
             supportingText = { errores.nombre?.let { Text(it) } },
-            leadingIcon = iconoCampo(error = errores.nombre, valido = formulario.nombre.isNotBlank())
+            leadingIcon = iconoCampo(
+                error = errores.nombre,
+                valido = tocados.nombre && errores.nombre == null && formulario.nombre.isNotBlank()
+            )
         )
 
         // ----- Fecha (Date): se escribe o se elige del calendario -----
@@ -116,7 +119,8 @@ fun ReservaFormScreen(
             supportingText = errores.fecha,
             leadingIcon = iconoCampo(
                 error = errores.fecha,
-                valido = formulario.fechaTexto.isNotBlank()
+                valido = tocados.fecha && errores.fecha == null &&
+                        viewModel.textoAFecha(formulario.fechaTexto) != null
             ),
             trailingIcon = {
                 IconButton(onClick = { mostrarDatePicker = true }) {
@@ -136,6 +140,11 @@ fun ReservaFormScreen(
                 modifier = Modifier.weight(1f),
                 isError = errores.horaInicio != null,
                 supportingText = errores.horaInicio,
+                leadingIcon = iconoCampo(
+                    error = errores.horaInicio,
+                    valido = tocados.horaInicio && errores.horaInicio == null &&
+                            viewModel.textoAMinutos(formulario.horaInicioTexto) != null
+                ),
                 trailingIcon = {
                     IconButton(onClick = { horaEnEdicion = CampoHora.INICIO }) {
                         Icon(Icons.Filled.Schedule, contentDescription = "Elegir hora de inicio")
@@ -151,6 +160,11 @@ fun ReservaFormScreen(
                 modifier = Modifier.weight(1f),
                 isError = errores.horaFin != null,
                 supportingText = errores.horaFin,
+                leadingIcon = iconoCampo(
+                    error = errores.horaFin,
+                    valido = tocados.horaFin && errores.horaFin == null &&
+                            viewModel.textoAMinutos(formulario.horaFinTexto) != null
+                ),
                 trailingIcon = {
                     IconButton(onClick = { horaEnEdicion = CampoHora.FIN }) {
                         Icon(Icons.Filled.Schedule, contentDescription = "Elegir hora de término")
@@ -174,7 +188,11 @@ fun ReservaFormScreen(
                         ?: "Entre 1 y ${ReservaFormViewModel.MAX_ASISTENTES} personas"
                 )
             },
-            leadingIcon = iconoCampo(error = errores.asistentes, valido = false)
+            leadingIcon = iconoCampo(
+                error = errores.asistentes,
+                valido = tocados.asistentes && errores.asistentes == null &&
+                        formulario.asistentes.isNotBlank()
+            )
         )
 
         // ----- Observaciones (String) -----
@@ -188,13 +206,13 @@ fun ReservaFormScreen(
             supportingText = { errores.observaciones?.let { Text(it) } }
         )
 
-        // ----- Switch: montaje -----
+        // ----- Switch: proyector -----
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Requiere servicio de montaje")
+            Text("Requiere proyector")
             Switch(
                 checked = formulario.requiereProyector,
                 onCheckedChange = viewModel::actualizarRequiereProyector
@@ -257,8 +275,14 @@ fun ReservaFormScreen(
 
     // ----- Calendario -----
     if (mostrarDatePicker) {
+        val hoy = viewModel.inicioDeHoy()
+        if (formulario.fechaTexto.isBlank()) {
+            viewModel.actualizarFechaTexto(viewModel.fechaATexto(hoy))
+        }
+
         val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = viewModel.textoAFecha(formulario.fechaTexto)
+            initialSelectedDateMillis = viewModel.textoAFecha(formulario.fechaTexto) ?: hoy,
+            selectableDates = SelectableDiasDesde(hoy)
         )
         DatePickerDialog(
             onDismissRequest = { mostrarDatePicker = false },
@@ -284,7 +308,6 @@ fun ReservaFormScreen(
             if (campo == CampoHora.INICIO) formulario.horaInicioTexto
             else formulario.horaFinTexto
         val minutosActuales = viewModel.textoAMinutos(textoActual) ?: (8 * 60)
-        // rememberTimePickerState(initialHour, initialMinute, is24Hour)
         val timePickerState = rememberTimePickerState(
             minutosActuales / 60,
             minutosActuales % 60,
@@ -307,82 +330,4 @@ fun ReservaFormScreen(
             }
         )
     }
-}
-
-/**
- * Campo de texto que aplica un formateo mientras se escribe (agrega "/" o ":")
- * y deja SIEMPRE el cursor al final.
- *
- * Con el OutlinedTextField normal (el de String) el cursor quedaba antes del
- * dígito recién agregado: al escribir 1530 se veía 1503.
- * Usando TextFieldValue + TextRange(...) se controla la posición del cursor.
- */
-@Composable
-private fun CampoFormateado(
-    valor: String,
-    onValorChange: (String) -> Unit,
-    formatear: (String) -> String,
-    label: String,
-    placeholder: String,
-    isError: Boolean,
-    supportingText: String?,
-    modifier: Modifier = Modifier,
-    leadingIcon: (@Composable () -> Unit)? = null,
-    trailingIcon: (@Composable () -> Unit)? = null
-) {
-    var campo by remember { mutableStateOf(TextFieldValue(valor)) }
-
-    // Si el valor cambia desde afuera (calendario, reloj o al limpiar), se sincroniza.
-    LaunchedEffect(valor) {
-        if (campo.text != valor) {
-            campo = TextFieldValue(valor, TextRange(valor.length))
-        }
-    }
-
-    OutlinedTextField(
-        value = campo,
-        onValueChange = { nuevo ->
-            val texto = formatear(nuevo.text)
-            campo = TextFieldValue(texto, TextRange(texto.length))
-            onValorChange(texto)
-        },
-        label = { Text(label) },
-        placeholder = { Text(placeholder) },
-        modifier = modifier,
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        isError = isError,
-        supportingText = supportingText?.let { mensaje ->
-            { Text(mensaje) }
-        },
-        leadingIcon = leadingIcon,
-        trailingIcon = trailingIcon
-    )
-}
-
-/** Ícono de estado del campo: error o válido (requisito de íconos). */
-@Composable
-private fun iconoCampo(
-    error: String?,
-    valido: Boolean
-): (@Composable () -> Unit)? = when {
-    error != null -> {
-        {
-            Icon(
-                imageVector = Icons.Outlined.Error,
-                contentDescription = "Campo con error",
-                tint = MaterialTheme.colorScheme.error
-            )
-        }
-    }
-    valido -> {
-        {
-            Icon(
-                imageVector = Icons.Outlined.CheckCircle,
-                contentDescription = "Campo válido",
-                tint = MaterialTheme.colorScheme.primary
-            )
-        }
-    }
-    else -> null
 }

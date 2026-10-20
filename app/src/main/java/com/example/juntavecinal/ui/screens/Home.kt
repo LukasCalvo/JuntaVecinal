@@ -20,7 +20,7 @@ fun HomeScreen(modifier: Modifier = Modifier) {
     ) {
         item {
             Text(
-                text = "Bienvenido a Nombre todavia no decidido jajajaaj",
+                text = "Página principal",
                 style = MaterialTheme.typography.headlineMedium
             )
         }

@@ -23,6 +23,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
+import com.example.juntavecinal.ui.screens.RegisterScreen
 import androidx.compose.ui.unit.dp
 import com.example.juntavecinal.ui.screens.HomeScreen
 import com.example.juntavecinal.ui.screens.ProfileScreen
@@ -48,13 +49,22 @@ class MainActivity : ComponentActivity() {
 fun JuntaVecinalApp() {
     var isLoggedIn by rememberSaveable { mutableStateOf(false) }
     var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
+    var pantallaAuth by rememberSaveable { mutableStateOf(PantallaAuth.LOGIN) }
 
     if (!isLoggedIn) {
         Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-            LoginScreen(
-                onLoginSuccess = { isLoggedIn = true },
-                modifier = Modifier.padding(innerPadding)
-            )
+            when (pantallaAuth) {
+                PantallaAuth.LOGIN -> LoginScreen(
+                    onLoginSuccess = { isLoggedIn = true },
+                    onIrARegistro = { pantallaAuth = PantallaAuth.REGISTRO },
+                    modifier = Modifier.padding(innerPadding)
+                )
+                PantallaAuth.REGISTRO -> RegisterScreen(
+                    onRegistroExitoso = { isLoggedIn = true },
+                    onVolver = { pantallaAuth = PantallaAuth.LOGIN },
+                    modifier = Modifier.padding(innerPadding)
+                )
+            }
         }
     } else {
         NavigationSuiteScaffold(
@@ -104,3 +114,5 @@ enum class AppDestinations(
     FORM_RESERVA("Nueva reserva", Icons.Filled.Add, enBarra = false),
     PERFIL("Perfil", Icons.Filled.AccountCircle),
 }
+
+private enum class PantallaAuth { LOGIN, REGISTRO }

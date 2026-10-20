@@ -24,7 +24,4 @@ interface ReservaDao {
 
     @Delete
     suspend fun delete(reserva: Reserva)
-
-    @Query("UPDATE reservas SET estado = :estado WHERE id = :id")
-    suspend fun updateEstado(id: Int, estado: String)
 }

@@ -28,6 +28,5 @@ data class Reserva(
     val observaciones: String = "",
     val requiereProyector: Boolean = false,
     val aceptaReglamento: Boolean = false,
-    val estado: EstadoReserva = EstadoReserva.PENDIENTE,
     val createdAt: Long = System.currentTimeMillis()
 )

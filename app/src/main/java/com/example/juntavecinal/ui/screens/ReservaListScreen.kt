@@ -10,11 +10,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
@@ -27,16 +28,15 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.juntavecinal.model.entity.EstadoReserva
 import com.example.juntavecinal.model.entity.Reserva
 import com.example.juntavecinal.viewmodel.ReservaListViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.TimeZone
-import androidx.compose.ui.platform.LocalLocale
 
 @Composable
 fun ReservaListScreen(
@@ -78,7 +78,6 @@ fun ReservaListScreen(
                 items(reservas, key = { it.id }) { reserva ->
                     TarjetaReserva(
                         reserva = reserva,
-                        onCancelar = { viewModel.cancelar(reserva) },
                         onEliminar = { viewModel.eliminar(reserva) },
                         modifier = Modifier.animateItem()
                     )
@@ -100,7 +99,6 @@ fun ReservaListScreen(
 @Composable
 private fun TarjetaReserva(
     reserva: Reserva,
-    onCancelar: () -> Unit,
     onEliminar: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -125,7 +123,12 @@ private fun TarjetaReserva(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
-                EtiquetaEstado(reserva.estado)
+                Icon(
+                    imageVector = Icons.Outlined.CheckCircle,
+                    contentDescription = "Confirmada",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
             }
 
             Text(
@@ -139,7 +142,7 @@ private fun TarjetaReserva(
             )
             if (reserva.requiereProyector) {
                 Text(
-                    text = "Requiere Proyector",
+                    text = "Requiere proyector",
                     style = MaterialTheme.typography.bodySmall
                 )
             }
@@ -152,28 +155,10 @@ private fun TarjetaReserva(
 
             Spacer(Modifier.height(4.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (reserva.estado != EstadoReserva.CANCELADA) {
-                    TextButton(onClick = onCancelar) { Text("Cancelar") }
-                }
                 TextButton(onClick = onEliminar) { Text("Eliminar") }
             }
         }
     }
-}
-
-@Composable
-private fun EtiquetaEstado(estado: EstadoReserva) {
-    val (texto, color) = when (estado) {
-        EstadoReserva.PENDIENTE -> "Pendiente" to MaterialTheme.colorScheme.tertiary
-        EstadoReserva.CONFIRMADA -> "Confirmada" to MaterialTheme.colorScheme.primary
-        EstadoReserva.CANCELADA -> "Cancelada" to MaterialTheme.colorScheme.error
-    }
-    Text(
-        text = texto,
-        color = color,
-        style = MaterialTheme.typography.labelMedium,
-        fontWeight = FontWeight.Bold
-    )
 }
 
 private fun horaTexto(minutos: Int): String =
