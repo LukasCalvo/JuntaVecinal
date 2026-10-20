@@ -49,7 +49,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.juntavecinal.viewmodel.ReservaFormViewModel
@@ -103,16 +105,15 @@ fun ReservaFormScreen(
         )
 
         // ----- Fecha (Date): se escribe o se elige del calendario -----
-        OutlinedTextField(
-            value = formulario.fechaTexto,
-            onValueChange = viewModel::actualizarFechaTexto,
-            label = { Text("Fecha (DD/MM/AAAA)") },
-            placeholder = { Text("25/12/2026") },
+        CampoFormateado(
+            valor = formulario.fechaTexto,
+            onValorChange = viewModel::actualizarFechaTexto,
+            formatear = viewModel::formatearFechaEntrada,
+            label = "Fecha (DD/MM/AAAA)",
+            placeholder = "25/12/2026",
             modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             isError = errores.fecha != null,
-            supportingText = { errores.fecha?.let { Text(it) } },
+            supportingText = errores.fecha,
             leadingIcon = iconoCampo(
                 error = errores.fecha,
                 valido = formulario.fechaTexto.isNotBlank()
@@ -126,32 +127,30 @@ fun ReservaFormScreen(
 
         // ----- Horas (HH:MM): se escriben o se eligen del reloj -----
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedTextField(
-                value = formulario.horaInicioTexto,
-                onValueChange = viewModel::actualizarHoraInicioTexto,
-                label = { Text("Hora inicio") },
-                placeholder = { Text("HH:MM") },
+            CampoFormateado(
+                valor = formulario.horaInicioTexto,
+                onValorChange = viewModel::actualizarHoraInicioTexto,
+                formatear = viewModel::formatearHoraEntrada,
+                label = "Hora inicio",
+                placeholder = "HH:MM",
                 modifier = Modifier.weight(1f),
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 isError = errores.horaInicio != null,
-                supportingText = { errores.horaInicio?.let { Text(it) } },
+                supportingText = errores.horaInicio,
                 trailingIcon = {
                     IconButton(onClick = { horaEnEdicion = CampoHora.INICIO }) {
                         Icon(Icons.Filled.Schedule, contentDescription = "Elegir hora de inicio")
                     }
                 }
             )
-            OutlinedTextField(
-                value = formulario.horaFinTexto,
-                onValueChange = viewModel::actualizarHoraFinTexto,
-                label = { Text("Hora término") },
-                placeholder = { Text("HH:MM") },
+            CampoFormateado(
+                valor = formulario.horaFinTexto,
+                onValorChange = viewModel::actualizarHoraFinTexto,
+                formatear = viewModel::formatearHoraEntrada,
+                label = "Hora término",
+                placeholder = "HH:MM",
                 modifier = Modifier.weight(1f),
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 isError = errores.horaFin != null,
-                supportingText = { errores.horaFin?.let { Text(it) } },
+                supportingText = errores.horaFin,
                 trailingIcon = {
                     IconButton(onClick = { horaEnEdicion = CampoHora.FIN }) {
                         Icon(Icons.Filled.Schedule, contentDescription = "Elegir hora de término")
@@ -195,7 +194,7 @@ fun ReservaFormScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Requiere un proyector")
+            Text("Requiere servicio de montaje")
             Switch(
                 checked = formulario.requiereProyector,
                 onCheckedChange = viewModel::actualizarRequiereProyector
@@ -308,6 +307,57 @@ fun ReservaFormScreen(
             }
         )
     }
+}
+
+/**
+ * Campo de texto que aplica un formateo mientras se escribe (agrega "/" o ":")
+ * y deja SIEMPRE el cursor al final.
+ *
+ * Con el OutlinedTextField normal (el de String) el cursor quedaba antes del
+ * dígito recién agregado: al escribir 1530 se veía 1503.
+ * Usando TextFieldValue + TextRange(...) se controla la posición del cursor.
+ */
+@Composable
+private fun CampoFormateado(
+    valor: String,
+    onValorChange: (String) -> Unit,
+    formatear: (String) -> String,
+    label: String,
+    placeholder: String,
+    isError: Boolean,
+    supportingText: String?,
+    modifier: Modifier = Modifier,
+    leadingIcon: (@Composable () -> Unit)? = null,
+    trailingIcon: (@Composable () -> Unit)? = null
+) {
+    var campo by remember { mutableStateOf(TextFieldValue(valor)) }
+
+    // Si el valor cambia desde afuera (calendario, reloj o al limpiar), se sincroniza.
+    LaunchedEffect(valor) {
+        if (campo.text != valor) {
+            campo = TextFieldValue(valor, TextRange(valor.length))
+        }
+    }
+
+    OutlinedTextField(
+        value = campo,
+        onValueChange = { nuevo ->
+            val texto = formatear(nuevo.text)
+            campo = TextFieldValue(texto, TextRange(texto.length))
+            onValorChange(texto)
+        },
+        label = { Text(label) },
+        placeholder = { Text(placeholder) },
+        modifier = modifier,
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        isError = isError,
+        supportingText = supportingText?.let { mensaje ->
+            { Text(mensaje) }
+        },
+        leadingIcon = leadingIcon,
+        trailingIcon = trailingIcon
+    )
 }
 
 /** Ícono de estado del campo: error o válido (requisito de íconos). */

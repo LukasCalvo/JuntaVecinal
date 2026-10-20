@@ -5,7 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.juntavecinal.data.AppDatabase
 import com.example.juntavecinal.model.entity.Reserva
-import com.example.juntavecinal.model.entity.ReservaForm
+import com.example.juntavecinal.model.ReservaForm
 import com.example.juntavecinal.model.repository.ReservaRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -137,7 +137,7 @@ class ReservaFormViewModel(application: Application) : AndroidViewModel(applicat
     // ---------- formato automático mientras se escribe ----------
 
     /** 25122026 -> 25/12/2026 */
-    private fun formatearFechaEntrada(valor: String): String {
+    fun formatearFechaEntrada(valor: String): String {
         val digitos = valor.filter { it.isDigit() }.take(8)
         val sb = StringBuilder()
         digitos.forEachIndexed { i, c ->
@@ -148,7 +148,7 @@ class ReservaFormViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     /** 1430 -> 14:30 */
-    private fun formatearHoraEntrada(valor: String): String {
+    fun formatearHoraEntrada(valor: String): String {
         val digitos = valor.filter { it.isDigit() }.take(4)
         return if (digitos.length <= 2) digitos
         else digitos.substring(0, 2) + ":" + digitos.substring(2)
