@@ -12,7 +12,7 @@ import com.example.juntavecinal.model.entity.Reserva
     Si se modifica algun dato relacionado con la base de datos (cualquier model)
     es necesario cambiar la version a una superior para que reinicie las base de datos
      */
-@Database(entities = [Usuario::class, Reserva::class], version = 9, exportSchema = false)
+@Database(entities = [Usuario::class, Reserva::class], version = 10, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun usuarioDao(): UsuarioDao
     abstract fun reservaDao(): ReservaDao

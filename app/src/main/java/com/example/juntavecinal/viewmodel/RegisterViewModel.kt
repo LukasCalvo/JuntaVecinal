@@ -234,6 +234,7 @@ class RegisterViewModel(application: Application) : AndroidViewModel(application
             }
 
             uiState = RegistroUiState()
+            Sesion.iniciar(usuario.id, usuario.nombre)
             onExito()
         }
     }

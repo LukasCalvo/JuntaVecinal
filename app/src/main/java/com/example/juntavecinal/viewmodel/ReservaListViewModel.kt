@@ -17,7 +17,7 @@ class ReservaListViewModel(application: Application) : AndroidViewModel(applicat
         AppDatabase.getInstance(application).reservaDao()
     )
 
-    private val usuarioIdActual = 1
+    private val usuarioIdActual = Sesion.usuarioId
 
     val reservas: StateFlow<List<Reserva>> = repository
         .delUsuario(usuarioIdActual)

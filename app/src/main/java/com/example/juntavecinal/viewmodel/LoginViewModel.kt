@@ -85,6 +85,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
             uiState = uiState.copy(cargando = true)
             val usuario = repository.login(uiState.rut, uiState.password)
             if (usuario != null) {
+                Sesion.iniciar(usuario.id, usuario.nombre)
                 uiState = uiState.copy(cargando = false)
                 onSuccess()
             } else {

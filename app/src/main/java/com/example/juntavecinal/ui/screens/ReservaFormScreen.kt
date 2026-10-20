@@ -1,11 +1,15 @@
 package com.example.juntavecinal.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,6 +24,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -54,6 +59,7 @@ import com.example.juntavecinal.ui.components.CampoFormateado
 import com.example.juntavecinal.ui.components.SelectableDiasDesde
 import com.example.juntavecinal.ui.components.iconoCampo
 import com.example.juntavecinal.viewmodel.ReservaFormViewModel
+import kotlinx.coroutines.delay
 
 /** Cuál de los dos selectores de hora está abierto. */
 private enum class CampoHora { INICIO, FIN }
@@ -70,6 +76,7 @@ fun ReservaFormScreen(
     val tocados by viewModel.tocados.collectAsState()
     val guardando by viewModel.guardando.collectAsState()
     val guardado by viewModel.guardado.collectAsState()
+    val mostrarExito by viewModel.mostrarExito.collectAsState()
     val mensajeGeneral by viewModel.mensajeGeneral.collectAsState()
 
     var mostrarDatePicker by remember { mutableStateOf(false) }
@@ -77,198 +84,234 @@ fun ReservaFormScreen(
 
     LaunchedEffect(guardado) {
         if (guardado) {
+            viewModel.mostrarAvisoExito()
+            delay(1400)
+            viewModel.ocultarAvisoExito()
             onReservaCreada()
             viewModel.consumirGuardado()
         }
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        Text("Nueva reserva", style = MaterialTheme.typography.headlineMedium)
-        Spacer(Modifier.height(4.dp))
+    Box(modifier = modifier.fillMaxSize()) {
+        AnimatedVisibility(
+            visible = !mostrarExito,
+            enter = fadeIn(tween(300)),
+            exit = fadeOut(tween(300))
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text("Nueva reserva", style = MaterialTheme.typography.headlineMedium)
+                Spacer(Modifier.height(4.dp))
 
-        // ----- Nombre (String) -----
-        OutlinedTextField(
-            value = formulario.nombre,
-            onValueChange = viewModel::actualizarNombre,
-            label = { Text("Nombre del solicitante") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            isError = errores.nombre != null,
-            supportingText = { errores.nombre?.let { Text(it) } },
-            leadingIcon = iconoCampo(
-                error = errores.nombre,
-                valido = tocados.nombre && errores.nombre == null && formulario.nombre.isNotBlank()
+            // ----- Nombre (String) -----
+            OutlinedTextField(
+                value = formulario.nombre,
+                onValueChange = viewModel::actualizarNombre,
+                label = { Text("Nombre del solicitante") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                isError = errores.nombre != null,
+                supportingText = { errores.nombre?.let { Text(it) } },
+                leadingIcon = iconoCampo(
+                    error = errores.nombre,
+                    valido = tocados.nombre && errores.nombre == null && formulario.nombre.isNotBlank()
+                )
             )
-        )
-
-        // ----- Fecha (Date): se escribe o se elige del calendario -----
-        CampoFormateado(
-            valor = formulario.fechaTexto,
-            onValorChange = viewModel::actualizarFechaTexto,
-            formatear = viewModel::formatearFechaEntrada,
-            label = "Fecha (DD/MM/AAAA)",
-            placeholder = "25/12/2026",
-            modifier = Modifier.fillMaxWidth(),
-            isError = errores.fecha != null,
-            supportingText = errores.fecha,
-            leadingIcon = iconoCampo(
-                error = errores.fecha,
-                valido = tocados.fecha && errores.fecha == null &&
-                        viewModel.textoAFecha(formulario.fechaTexto) != null
-            ),
-            trailingIcon = {
-                IconButton(onClick = { mostrarDatePicker = true }) {
-                    Icon(Icons.Filled.CalendarMonth, contentDescription = "Elegir del calendario")
+    
+            // ----- Fecha (Date): se escribe o se elige del calendario -----
+            CampoFormateado(
+                valor = formulario.fechaTexto,
+                onValorChange = viewModel::actualizarFechaTexto,
+                formatear = viewModel::formatearFechaEntrada,
+                label = "Fecha (DD/MM/AAAA)",
+                placeholder = "25/12/2026",
+                modifier = Modifier.fillMaxWidth(),
+                isError = errores.fecha != null,
+                supportingText = errores.fecha,
+                leadingIcon = iconoCampo(
+                    error = errores.fecha,
+                    valido = tocados.fecha && errores.fecha == null &&
+                            viewModel.textoAFecha(formulario.fechaTexto) != null
+                ),
+                trailingIcon = {
+                    IconButton(onClick = { mostrarDatePicker = true }) {
+                        Icon(Icons.Filled.CalendarMonth, contentDescription = "Elegir del calendario")
+                    }
+                }
+            )
+    
+            // ----- Horas (HH:MM): se escriben o se eligen del reloj -----
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                CampoFormateado(
+                    valor = formulario.horaInicioTexto,
+                    onValorChange = viewModel::actualizarHoraInicioTexto,
+                    formatear = viewModel::formatearHoraEntrada,
+                    label = "Hora inicio",
+                    placeholder = "HH:MM",
+                    modifier = Modifier.weight(1f),
+                    isError = errores.horaInicio != null,
+                    supportingText = errores.horaInicio,
+                    leadingIcon = iconoCampo(
+                        error = errores.horaInicio,
+                        valido = tocados.horaInicio && errores.horaInicio == null &&
+                                viewModel.textoAMinutos(formulario.horaInicioTexto) != null
+                    ),
+                    trailingIcon = {
+                        IconButton(onClick = { horaEnEdicion = CampoHora.INICIO }) {
+                            Icon(Icons.Filled.Schedule, contentDescription = "Elegir hora de inicio")
+                        }
+                    }
+                )
+                CampoFormateado(
+                    valor = formulario.horaFinTexto,
+                    onValorChange = viewModel::actualizarHoraFinTexto,
+                    formatear = viewModel::formatearHoraEntrada,
+                    label = "Hora término",
+                    placeholder = "HH:MM",
+                    modifier = Modifier.weight(1f),
+                    isError = errores.horaFin != null,
+                    supportingText = errores.horaFin,
+                    leadingIcon = iconoCampo(
+                        error = errores.horaFin,
+                        valido = tocados.horaFin && errores.horaFin == null &&
+                                viewModel.textoAMinutos(formulario.horaFinTexto) != null
+                    ),
+                    trailingIcon = {
+                        IconButton(onClick = { horaEnEdicion = CampoHora.FIN }) {
+                            Icon(Icons.Filled.Schedule, contentDescription = "Elegir hora de término")
+                        }
+                    }
+                )
+            }
+    
+            // ----- Asistentes (Int) -----
+            OutlinedTextField(
+                value = formulario.asistentes,
+                onValueChange = viewModel::actualizarAsistentes,
+                label = { Text("Cantidad de asistentes") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                isError = errores.asistentes != null,
+                supportingText = {
+                    Text(
+                        errores.asistentes
+                            ?: "Entre 1 y ${ReservaFormViewModel.MAX_ASISTENTES} personas"
+                    )
+                },
+                leadingIcon = iconoCampo(
+                    error = errores.asistentes,
+                    valido = tocados.asistentes && errores.asistentes == null &&
+                            formulario.asistentes.isNotBlank()
+                )
+            )
+    
+            // ----- Observaciones (String) -----
+            OutlinedTextField(
+                value = formulario.observaciones,
+                onValueChange = viewModel::actualizarObservaciones,
+                label = { Text("Observaciones (opcional)") },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 3,
+                isError = errores.observaciones != null,
+                supportingText = { errores.observaciones?.let { Text(it) } }
+            )
+    
+            // ----- Switch: proyector -----
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Requiere proyector")
+                Switch(
+                    checked = formulario.requiereProyector,
+                    onCheckedChange = viewModel::actualizarRequiereProyector
+                )
+            }
+    
+            // ----- Checkbox: reglamento -----
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(
+                    checked = formulario.aceptaReglamento,
+                    onCheckedChange = viewModel::actualizarAceptaReglamento
+                )
+                Text("Acepto el reglamento de uso")
+            }
+            AnimatedVisibility(
+                visible = errores.aceptaReglamento != null,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Text(
+                    text = errores.aceptaReglamento.orEmpty(),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(start = 12.dp)
+                )
+            }
+    
+            // ----- Mensaje general (choque de horarios) -----
+            AnimatedVisibility(
+                visible = mensajeGeneral != null,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Text(
+                    text = mensajeGeneral.orEmpty(),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+    
+            // ----- Botón con estado de carga -----
+            Button(
+                onClick = { viewModel.guardar() },
+                enabled = !guardando,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (guardando) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Guardando...")
+                } else {
+                    Text("Guardar reserva")
                 }
             }
-        )
-
-        // ----- Horas (HH:MM): se escriben o se eligen del reloj -----
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            CampoFormateado(
-                valor = formulario.horaInicioTexto,
-                onValorChange = viewModel::actualizarHoraInicioTexto,
-                formatear = viewModel::formatearHoraEntrada,
-                label = "Hora inicio",
-                placeholder = "HH:MM",
-                modifier = Modifier.weight(1f),
-                isError = errores.horaInicio != null,
-                supportingText = errores.horaInicio,
-                leadingIcon = iconoCampo(
-                    error = errores.horaInicio,
-                    valido = tocados.horaInicio && errores.horaInicio == null &&
-                            viewModel.textoAMinutos(formulario.horaInicioTexto) != null
-                ),
-                trailingIcon = {
-                    IconButton(onClick = { horaEnEdicion = CampoHora.INICIO }) {
-                        Icon(Icons.Filled.Schedule, contentDescription = "Elegir hora de inicio")
-                    }
-                }
-            )
-            CampoFormateado(
-                valor = formulario.horaFinTexto,
-                onValorChange = viewModel::actualizarHoraFinTexto,
-                formatear = viewModel::formatearHoraEntrada,
-                label = "Hora término",
-                placeholder = "HH:MM",
-                modifier = Modifier.weight(1f),
-                isError = errores.horaFin != null,
-                supportingText = errores.horaFin,
-                leadingIcon = iconoCampo(
-                    error = errores.horaFin,
-                    valido = tocados.horaFin && errores.horaFin == null &&
-                            viewModel.textoAMinutos(formulario.horaFinTexto) != null
-                ),
-                trailingIcon = {
-                    IconButton(onClick = { horaEnEdicion = CampoHora.FIN }) {
-                        Icon(Icons.Filled.Schedule, contentDescription = "Elegir hora de término")
-                    }
-                }
-            )
+        }
         }
 
-        // ----- Asistentes (Int) -----
-        OutlinedTextField(
-            value = formulario.asistentes,
-            onValueChange = viewModel::actualizarAsistentes,
-            label = { Text("Cantidad de asistentes") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            isError = errores.asistentes != null,
-            supportingText = {
+        // ----- Confirmación animada, centrada en la pantalla -----
+        AnimatedVisibility(
+            visible = mostrarExito,
+            enter = fadeIn(tween(400)) + scaleIn(tween(400), initialScale = 0.8f),
+            exit = fadeOut(tween(250)) + scaleOut(tween(250), targetScale = 0.8f),
+            modifier = Modifier.align(Alignment.Center)
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.CheckCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(72.dp)
+                )
                 Text(
-                    errores.asistentes
-                        ?: "Entre 1 y ${ReservaFormViewModel.MAX_ASISTENTES} personas"
+                    text = "¡Reserva creada con éxito!",
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.headlineSmall
                 )
-            },
-            leadingIcon = iconoCampo(
-                error = errores.asistentes,
-                valido = tocados.asistentes && errores.asistentes == null &&
-                        formulario.asistentes.isNotBlank()
-            )
-        )
-
-        // ----- Observaciones (String) -----
-        OutlinedTextField(
-            value = formulario.observaciones,
-            onValueChange = viewModel::actualizarObservaciones,
-            label = { Text("Observaciones (opcional)") },
-            modifier = Modifier.fillMaxWidth(),
-            minLines = 3,
-            isError = errores.observaciones != null,
-            supportingText = { errores.observaciones?.let { Text(it) } }
-        )
-
-        // ----- Switch: proyector -----
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("Requiere proyector")
-            Switch(
-                checked = formulario.requiereProyector,
-                onCheckedChange = viewModel::actualizarRequiereProyector
-            )
-        }
-
-        // ----- Checkbox: reglamento -----
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Checkbox(
-                checked = formulario.aceptaReglamento,
-                onCheckedChange = viewModel::actualizarAceptaReglamento
-            )
-            Text("Acepto el reglamento de uso")
-        }
-        AnimatedVisibility(
-            visible = errores.aceptaReglamento != null,
-            enter = expandVertically() + fadeIn(),
-            exit = shrinkVertically() + fadeOut()
-        ) {
-            Text(
-                text = errores.aceptaReglamento.orEmpty(),
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(start = 12.dp)
-            )
-        }
-
-        // ----- Mensaje general (choque de horarios) -----
-        AnimatedVisibility(
-            visible = mensajeGeneral != null,
-            enter = expandVertically() + fadeIn(),
-            exit = shrinkVertically() + fadeOut()
-        ) {
-            Text(
-                text = mensajeGeneral.orEmpty(),
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
-
-        // ----- Botón con estado de carga -----
-        Button(
-            onClick = { viewModel.guardar() },
-            enabled = !guardando,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            if (guardando) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(18.dp),
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.onPrimary
-                )
-                Spacer(Modifier.width(8.dp))
-                Text("Guardando...")
-            } else {
-                Text("Guardar reserva")
             }
         }
     }
