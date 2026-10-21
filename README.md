@@ -39,3 +39,31 @@ Aplicación Android para gestionar reservas de espacios de una junta vecinal. Pe
 3. Espera a que termine la sincronización de Gradle y la descarga de dependencias.
 4. Selecciona un emulador o conecta un dispositivo con depuración USB habilitada.
 5. Ejecuta la configuración `app`.
+
+6. ## Estructura del proyecto
+
+```text
+JuntaVecinal/
+├── app/
+│   ├── src/main/
+│   │   ├── java/com/example/juntavecinal/
+│   │   │   ├── data/          # Configuración de Room
+│   │   │   ├── model/
+│   │   │   │   ├── dao/       # Consultas de base de datos
+│   │   │   │   ├── entity/    # Entidades Usuario y Reserva
+│   │   │   │   └── repository/# Acceso a datos y reglas de negocio
+│   │   │   ├── ui/
+│   │   │   │   ├── components/# Componentes reutilizables
+│   │   │   │   ├── screens/   # Pantallas Compose
+│   │   │   │   └── theme/     # Tema visual
+│   │   │   ├── util/          # RUT, fechas y notificaciones
+│   │   │   ├── viewmodel/     # Estado de pantalla y lógica de presentación
+│   │   │   └── MainActivity.kt
+│   │   ├── src/test/          # Pruebas unitarias
+│   │   └── src/androidTest/   # Pruebas instrumentadas
+│   └── build.gradle.kts
+├── gradle/
+│   └── libs.versions.toml     # Versiones y dependencias
+├── build.gradle.kts
+├── settings.gradle.kts
+└── README.md
