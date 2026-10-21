@@ -1,5 +1,9 @@
 package com.example.juntavecinal.ui.screens
 
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
@@ -52,12 +56,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.juntavecinal.ui.components.CampoFormateado
 import com.example.juntavecinal.ui.components.SelectableDiasDesde
 import com.example.juntavecinal.ui.components.iconoCampo
+import com.example.juntavecinal.util.Notificador
 import com.example.juntavecinal.viewmodel.ReservaFormViewModel
 import kotlinx.coroutines.delay
 
@@ -82,6 +88,17 @@ fun ReservaFormScreen(
     var mostrarDatePicker by remember { mutableStateOf(false) }
     var horaEnEdicion by remember { mutableStateOf<CampoHora?>(null) }
 
+    val context = LocalContext.current
+    val pedirPermiso = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { }
+
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= 33) pedirPermiso.launch(Manifest.permission.POST_NOTIFICATIONS)
+    }
+
+// dentro de tu LaunchedEffect(guardado), junto a mostrarAvisoExito():
+    Notificador.mostrar(context, "Reserva creada", "Tu reserva quedó registrada.")
     LaunchedEffect(guardado) {
         if (!guardado) return@LaunchedEffect
         viewModel.mostrarAvisoExito()
