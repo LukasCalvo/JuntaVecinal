@@ -97,14 +97,13 @@ fun ReservaFormScreen(
         if (Build.VERSION.SDK_INT >= 33) pedirPermiso.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 
-// dentro de tu LaunchedEffect(guardado), junto a mostrarAvisoExito():
-    Notificador.mostrar(context, "Reserva creada", "Tu reserva quedó registrada.")
     LaunchedEffect(guardado) {
         if (!guardado) return@LaunchedEffect
         viewModel.mostrarAvisoExito()
         try {
             delay(1400)
             viewModel.ocultarAvisoExito()
+            Notificador.mostrar(context, "Reserva creada", "Tu reserva quedó registrada.")
             onReservaCreada()
         } finally {
             viewModel.ocultarAvisoExito()
