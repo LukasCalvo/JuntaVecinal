@@ -18,7 +18,7 @@ class Rut {
 
         fun esValido(rut: String): Boolean {
             val limpio = normalizar(rut)
-            if (limpio.length < 8) return true
+            if (limpio.length < 8) return false
             if (!Regex("^\\d{7,8}[\\dK]$").matches(limpio)) return false
 
             val runSinDV = limpio.dropLast(1)

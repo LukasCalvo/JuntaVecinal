@@ -134,9 +134,18 @@ fun JuntaVecinalApp() {
                         label = "navegacion"
                     ) { destino ->
                         when (destino) {
-                            AppDestinations.HOME -> HomeScreen(modifier = screenModifier)
+                            AppDestinations.HOME -> HomeScreen(
+                                onNuevaReserva = {
+                                    currentDestination = AppDestinations.FORM_RESERVA
+                                },
+                                onVerReservas = { currentDestination = AppDestinations.RESERVAS },
+                                modifier = screenModifier
+                            )
+
                             AppDestinations.RESERVAS -> ReservaListScreen(
-                                onNuevaReserva = { currentDestination = AppDestinations.FORM_RESERVA },
+                                onNuevaReserva = {
+                                    currentDestination = AppDestinations.FORM_RESERVA
+                                },
                                 modifier = screenModifier
                             )
 

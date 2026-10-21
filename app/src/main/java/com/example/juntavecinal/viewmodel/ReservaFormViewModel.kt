@@ -48,12 +48,6 @@ class ReservaFormViewModel(application: Application) : AndroidViewModel(applicat
         AppDatabase.getInstance(application).reservaDao()
     )
 
-    init {
-        viewModelScope.launch {
-            SessionManager.usuarioId.collect { if (it == null) limpiar() }
-        }
-    }
-
     private val _formulario = MutableStateFlow(ReservaForm())
     val formulario: StateFlow<ReservaForm> = _formulario.asStateFlow()
 
@@ -73,6 +67,13 @@ class ReservaFormViewModel(application: Application) : AndroidViewModel(applicat
     val mostrarExito: StateFlow<Boolean> = _mostrarExito.asStateFlow()
 
     private val _mensajeGeneral = MutableStateFlow<String?>(null)
+
+    init {
+        viewModelScope.launch {
+            SessionManager.usuarioId.collect { if (it == null) limpiar() }
+        }
+    }
+
     val mensajeGeneral: StateFlow<String?> = _mensajeGeneral.asStateFlow()
 
     fun textoAFecha(texto: String): Long? {
@@ -205,6 +206,9 @@ class ReservaFormViewModel(application: Application) : AndroidViewModel(applicat
         return if (inicio != null && fin <= inicio) "Debe ser posterior a la hora de inicio" else null
     }
 
+    private fun errorHoraAlGuardar(texto: String): String? =
+        if (texto.isNotBlank() && textoAMinutos(texto) == null) "Hora inválida (usa HH:MM)" else null
+
     private fun errorDeAsistentes(datos: ReservaForm): String? {
         val numero = datos.asistentes.trim().toIntOrNull()
         return when {
@@ -275,8 +279,12 @@ class ReservaFormViewModel(application: Application) : AndroidViewModel(applicat
             observaciones = true,
             aceptaReglamento = true
         )
-        _errores.value = calcularErrores(_formulario.value).copy(
-            fecha = errorFechaAlGuardar(_formulario.value)
+        val datos = _formulario.value
+        val base = calcularErrores(datos)
+        _errores.value = base.copy(
+            fecha = errorFechaAlGuardar(datos),
+            horaInicio = base.horaInicio ?: errorHoraAlGuardar(datos.horaInicioTexto),
+            horaFin = base.horaFin ?: errorHoraAlGuardar(datos.horaFinTexto)
         )
         return _errores.value == ReservaErrores()
     }
@@ -327,9 +335,13 @@ class ReservaFormViewModel(application: Application) : AndroidViewModel(applicat
         _guardado.value = false
     }
 
-    fun mostrarAvisoExito() { _mostrarExito.value = true }
+    fun mostrarAvisoExito() {
+        _mostrarExito.value = true
+    }
 
-    fun ocultarAvisoExito() { _mostrarExito.value = false }
+    fun ocultarAvisoExito() {
+        _mostrarExito.value = false
+    }
 
     private fun limpiar() {
         _formulario.value = ReservaForm()

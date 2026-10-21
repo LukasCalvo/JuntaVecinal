@@ -1,9 +1,7 @@
 package com.example.juntavecinal.ui.screens
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -108,7 +106,7 @@ fun RegisterScreen(
             modifier = Modifier.fillMaxWidth(),
             prefix = "+56",
             isError = state.errores.telefono != null,
-            supportingText = state.errores.telefono ?: "Solo los 8 dígitos, sin el +56",
+            supportingText = state.errores.telefono ?: "Solo los 9 dígitos, sin el +56",
             leadingIcon = iconoCampo(
                 error = state.errores.telefono,
                 valido = state.errores.telefono == null &&

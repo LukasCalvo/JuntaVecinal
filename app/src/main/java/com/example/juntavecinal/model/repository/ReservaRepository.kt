@@ -14,7 +14,7 @@ class ReservaRepository(private val dao: ReservaDao) {
         val delDia = dao.buscarPorDia(reserva.fecha)
         val solapada = delDia.any {
             reserva.horaInicioMin < it.horaFinMin &&
-            it.horaInicioMin < reserva.horaFinMin
+                    it.horaInicioMin < reserva.horaFinMin
         }
         if (solapada) return "Ese horario ya está reservado."
         dao.insert(reserva)
@@ -22,4 +22,7 @@ class ReservaRepository(private val dao: ReservaDao) {
     }
 
     suspend fun eliminar(reserva: Reserva) = dao.delete(reserva)
+
+    fun proximas(usuarioId: Int, desde: Long): Flow<List<Reserva>> =
+        dao.observeProximas(usuarioId, desde)
 }

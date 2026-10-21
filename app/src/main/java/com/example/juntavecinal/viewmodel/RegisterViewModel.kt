@@ -85,7 +85,7 @@ class RegisterViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun onFiltroComunaChange(valor: String) {
-        uiState = uiState.copy(filtroComuna = valor)
+        uiState = uiState.copy(filtroComuna = "")
     }
 
     fun onComunaChange(comuna: String) {

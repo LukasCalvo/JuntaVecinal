@@ -22,6 +22,9 @@ interface ReservaDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(reserva: Reserva)
 
+    @Query("SELECT * FROM reservas WHERE usuarioId = :usuarioId AND fecha >= :desde ORDER BY fecha ASC, horaInicioMin ASC")
+    fun observeProximas(usuarioId: Int, desde: Long): Flow<List<Reserva>>
+
     @Delete
     suspend fun delete(reserva: Reserva)
 }
