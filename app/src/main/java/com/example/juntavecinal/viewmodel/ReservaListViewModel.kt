@@ -6,8 +6,11 @@ import androidx.lifecycle.viewModelScope
 import com.example.juntavecinal.data.AppDatabase
 import com.example.juntavecinal.model.entity.Reserva
 import com.example.juntavecinal.model.repository.ReservaRepository
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -17,10 +20,11 @@ class ReservaListViewModel(application: Application) : AndroidViewModel(applicat
         AppDatabase.getInstance(application).reservaDao()
     )
 
-    private val usuarioIdActual = Sesion.usuarioId
-
-    val reservas: StateFlow<List<Reserva>> = repository
-        .delUsuario(usuarioIdActual)
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val reservas: StateFlow<List<Reserva>> = SessionManager.usuarioId
+        .flatMapLatest { id ->
+            if (id == null) flowOf(emptyList()) else repository.delUsuario(id)
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun eliminar(reserva: Reserva) {

@@ -4,8 +4,8 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.juntavecinal.data.AppDatabase
-import com.example.juntavecinal.model.entity.Reserva
 import com.example.juntavecinal.model.ReservaForm
+import com.example.juntavecinal.model.entity.Reserva
 import com.example.juntavecinal.model.repository.ReservaRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -48,7 +48,11 @@ class ReservaFormViewModel(application: Application) : AndroidViewModel(applicat
         AppDatabase.getInstance(application).reservaDao()
     )
 
-    private val usuarioIdActual = Sesion.usuarioId
+    init {
+        viewModelScope.launch {
+            SessionManager.usuarioId.collect { if (it == null) limpiar() }
+        }
+    }
 
     private val _formulario = MutableStateFlow(ReservaForm())
     val formulario: StateFlow<ReservaForm> = _formulario.asStateFlow()
@@ -170,6 +174,7 @@ class ReservaFormViewModel(application: Application) : AndroidViewModel(applicat
         return when {
             millis == null ->
                 if (datos.fechaTexto.length == 10) "Fecha inválida (usa DD/MM/AAAA)" else null
+
             esPasada(datos.fechaTexto) -> "La fecha no puede ser anterior a hoy"
             else -> null
         }
@@ -186,6 +191,7 @@ class ReservaFormViewModel(application: Application) : AndroidViewModel(applicat
         datos.horaInicioTexto.isBlank() -> "Indica la hora de inicio"
         textoAMinutos(datos.horaInicioTexto) == null ->
             if (datos.horaInicioTexto.length == 5) "Hora inválida (usa HH:MM)" else null
+
         else -> null
     }
 
@@ -244,7 +250,8 @@ class ReservaFormViewModel(application: Application) : AndroidViewModel(applicat
         val hoy = SimpleDateFormat("yyyyMMdd", Locale.US)
             .apply { timeZone = TimeZone.getTimeZone("America/Santiago") }
             .format(Date())
-        val fecha = fechaTexto.substring(6, 10) + fechaTexto.substring(3, 5) + fechaTexto.substring(0, 2)
+        val fecha =
+            fechaTexto.substring(6, 10) + fechaTexto.substring(3, 5) + fechaTexto.substring(0, 2)
         return fecha < hoy
     }
 
@@ -276,6 +283,12 @@ class ReservaFormViewModel(application: Application) : AndroidViewModel(applicat
 
     fun guardar() {
         if (!validarFormulario()) return
+
+        val usuarioId = SessionManager.usuarioId.value ?: run {
+            _mensajeGeneral.value = "Tu sesión expiró. Vuelve a iniciar sesión."
+            return
+        }
+
         val datos = _formulario.value
         val fecha = textoAFecha(datos.fechaTexto) ?: return
         val horaInicio = textoAMinutos(datos.horaInicioTexto) ?: return
@@ -287,7 +300,7 @@ class ReservaFormViewModel(application: Application) : AndroidViewModel(applicat
             _mensajeGeneral.value = null
 
             val reserva = Reserva(
-                usuarioId = usuarioIdActual,
+                usuarioId = usuarioId,
                 nombre = datos.nombre.trim(),
                 fecha = fecha,
                 horaInicioMin = horaInicio,
@@ -310,7 +323,9 @@ class ReservaFormViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    fun consumirGuardado() { _guardado.value = false }
+    fun consumirGuardado() {
+        _guardado.value = false
+    }
 
     fun mostrarAvisoExito() { _mostrarExito.value = true }
 

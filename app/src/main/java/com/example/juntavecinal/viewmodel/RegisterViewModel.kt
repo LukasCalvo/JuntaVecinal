@@ -7,8 +7,8 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.juntavecinal.data.AppDatabase
-import com.example.juntavecinal.model.repository.UsuarioRepository
 import com.example.juntavecinal.model.Ubicaciones
+import com.example.juntavecinal.model.repository.UsuarioRepository
 import com.example.juntavecinal.util.Rut
 import kotlinx.coroutines.launch
 
@@ -233,8 +233,8 @@ class RegisterViewModel(application: Application) : AndroidViewModel(application
                 return@launch
             }
 
+            SessionManager.iniciarSesion(usuario.id, usuario.nombre)
             uiState = RegistroUiState()
-            Sesion.iniciar(usuario.id, usuario.nombre)
             onExito()
         }
     }
