@@ -16,6 +16,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -23,14 +24,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
-import com.example.juntavecinal.ui.screens.RegisterScreen
-import androidx.compose.ui.unit.dp
 import com.example.juntavecinal.ui.screens.HomeScreen
-import com.example.juntavecinal.ui.screens.ProfileScreen
-import com.example.juntavecinal.ui.theme.JuntaVecinalTheme
 import com.example.juntavecinal.ui.screens.LoginScreen
+import com.example.juntavecinal.ui.screens.ProfileScreen
+import com.example.juntavecinal.ui.screens.RegisterScreen
 import com.example.juntavecinal.ui.screens.ReservaFormScreen
 import com.example.juntavecinal.ui.screens.ReservaListScreen
+import com.example.juntavecinal.ui.theme.JuntaVecinalTheme
+import com.example.juntavecinal.viewmodel.SessionManager
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -47,7 +48,8 @@ class MainActivity : ComponentActivity() {
 @PreviewScreenSizes
 @Composable
 fun JuntaVecinalApp() {
-    var isLoggedIn by rememberSaveable { mutableStateOf(false) }
+    val usuarioId by SessionManager.usuarioId.collectAsState()
+    val isLoggedIn = usuarioId != null
     var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
     var pantallaAuth by rememberSaveable { mutableStateOf(PantallaAuth.LOGIN) }
 
@@ -55,12 +57,13 @@ fun JuntaVecinalApp() {
         Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
             when (pantallaAuth) {
                 PantallaAuth.LOGIN -> LoginScreen(
-                    onLoginSuccess = { isLoggedIn = true },
+                    onLoginSuccess = { },
                     onIrARegistro = { pantallaAuth = PantallaAuth.REGISTRO },
                     modifier = Modifier.padding(innerPadding)
                 )
+
                 PantallaAuth.REGISTRO -> RegisterScreen(
-                    onRegistroExitoso = { isLoggedIn = true },
+                    onRegistroExitoso = { },
                     onVolver = { pantallaAuth = PantallaAuth.LOGIN },
                     modifier = Modifier.padding(innerPadding)
                 )
@@ -93,11 +96,20 @@ fun JuntaVecinalApp() {
                         onNuevaReserva = { currentDestination = AppDestinations.FORM_RESERVA },
                         modifier = screenModifier
                     )
+
                     AppDestinations.FORM_RESERVA -> ReservaFormScreen(
                         onReservaCreada = { currentDestination = AppDestinations.RESERVAS },
                         modifier = screenModifier
                     )
-                    AppDestinations.PERFIL -> ProfileScreen(modifier = screenModifier)
+
+                    AppDestinations.PERFIL -> ProfileScreen(
+                        onCerrarSesion = {
+                            SessionManager.cerrarSesion()
+                            currentDestination = AppDestinations.HOME
+                            pantallaAuth = PantallaAuth.LOGIN
+                        },
+                        modifier = screenModifier
+                    )
                 }
             }
         }
