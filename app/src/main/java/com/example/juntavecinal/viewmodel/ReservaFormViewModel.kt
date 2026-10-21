@@ -39,7 +39,7 @@ data class ReservaTocados(
 class ReservaFormViewModel(application: Application) : AndroidViewModel(application) {
 
     companion object {
-        const val MAX_ASISTENTES = 200
+        const val MAX_ASISTENTES = 50
         private const val PATRON_FECHA = "^\\d{2}/\\d{2}/\\d{4}$"
         private const val PATRON_HORA = "^([01]\\d|2[0-3]):([0-5]\\d)$"
     }
@@ -68,6 +68,9 @@ class ReservaFormViewModel(application: Application) : AndroidViewModel(applicat
 
     private val _guardado = MutableStateFlow(false)
     val guardado: StateFlow<Boolean> = _guardado.asStateFlow()
+
+    private val _mostrarExito = MutableStateFlow(false)
+    val mostrarExito: StateFlow<Boolean> = _mostrarExito.asStateFlow()
 
     private val _mensajeGeneral = MutableStateFlow<String?>(null)
     val mensajeGeneral: StateFlow<String?> = _mensajeGeneral.asStateFlow()
@@ -122,7 +125,7 @@ class ReservaFormViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     fun actualizarAsistentes(valor: String) {
-        if (valor.length <= 3 && valor.all { it.isDigit() }) {
+        if (valor.length <= 2 && valor.all { it.isDigit() }) {
             _formulario.value = _formulario.value.copy(asistentes = valor)
             marcarTocado { it.copy(asistentes = true) }
         }
@@ -323,6 +326,10 @@ class ReservaFormViewModel(application: Application) : AndroidViewModel(applicat
     fun consumirGuardado() {
         _guardado.value = false
     }
+
+    fun mostrarAvisoExito() { _mostrarExito.value = true }
+
+    fun ocultarAvisoExito() { _mostrarExito.value = false }
 
     private fun limpiar() {
         _formulario.value = ReservaForm()
