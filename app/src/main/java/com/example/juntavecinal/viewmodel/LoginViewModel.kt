@@ -1,12 +1,13 @@
 package com.example.juntavecinal.viewmodel
 
-import android.app.Application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.juntavecinal.data.AppDatabase
+import com.example.juntavecinal.data.remote.Api
+import com.example.juntavecinal.data.remote.ErrorApi
+import com.example.juntavecinal.data.remote.peticion
 import com.example.juntavecinal.model.repository.UsuarioRepository
 import com.example.juntavecinal.util.Rut
 import kotlinx.coroutines.launch
@@ -26,18 +27,12 @@ data class LoginUiState(
     val cargando: Boolean = false
 )
 
-class LoginViewModel(application: Application) : AndroidViewModel(application) {
-
-    private val repository = UsuarioRepository(
-        AppDatabase.getInstance(application).usuarioDao()
-    )
+class LoginViewModel(
+    private val repository: UsuarioRepository = UsuarioRepository(Api.auth)
+) : ViewModel() {
 
     var uiState by mutableStateOf(LoginUiState())
         private set
-
-    init {
-        viewModelScope.launch { repository.sembrarUsuariosDePrueba() }
-    }
 
     fun onRutChange(valor: String) {
         val formateado = Rut.formatear(valor)
@@ -61,17 +56,21 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
     fun errorDeRut(rut: String): String? {
         if (rut.isBlank()) return "Ingresa tu RUT"
 
-        val limpio = Rut.normalizar(rut)
-        return if (limpio.length < 8) "RUT inválido (ej: 12.345.678-5)" else null
+        return if (!Rut.esValido(rut)) "RUT inválido (ej: 12.345.678-5)" else null
     }
 
-    fun errorDePassword(password: String): String? =
-        if (password.isBlank()) "La contraseña no puede estar vacía" else null
+    fun errorDePassword(password: String): String? = when {
+        password.isBlank() -> "La contraseña no puede estar vacía"
+        password.length > 128 -> "Máximo 128 caracteres"
+        else -> null
+    }
 
     fun login(onSuccess: () -> Unit) {
+        if (uiState.cargando) return
+        val datos = uiState
         val errores = LoginErrores(
-            rut = errorDeRut(uiState.rut),
-            password = errorDePassword(uiState.password)
+            rut = errorDeRut(datos.rut),
+            password = errorDePassword(datos.password)
         )
 
         uiState = uiState.copy(
@@ -81,19 +80,23 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
         )
         if (errores != LoginErrores()) return
 
+        uiState = uiState.copy(cargando = true, error = null)
         viewModelScope.launch {
-            uiState = uiState.copy(cargando = true)
-            val usuario = repository.login(uiState.rut, uiState.password)
-            if (usuario != null) {
-                SessionManager.iniciarSesion(usuario.id, usuario.nombre)
+            peticion { repository.login(datos.rut, datos.password) }.onSuccess { sesion ->
+                SessionManager.iniciarSesion(sesion)
                 uiState = LoginUiState()
                 onSuccess()
-            } else {
+            }.onFailure { error ->
                 uiState = uiState.copy(
                     cargando = false,
-                    error = "RUT o contraseña incorrectos"
+                    error = if ((error as? ErrorApi)?.codigo == 401) "RUT o contraseña incorrectos"
+                    else error.message
                 )
             }
         }
+    }
+
+    fun informarError(mensaje: String) {
+        uiState = uiState.copy(error = mensaje)
     }
 }

@@ -1,69 +1,38 @@
 # JuntaVecinal
 
-Aplicación Android para gestionar reservas de espacios de una junta vecinal. Permite registrar vecinos, iniciar sesión y crear/consultar reservas desde una interfaz desarrollada con Jetpack Compose.
+Aplicación Android en Kotlin y Jetpack Compose para reservar el salón de la junta vecinal. Usa Room para consultar la caché de reservas por cuenta y Retrofit para comunicarse con el Gateway de `backend-app`.
 
-> Estado: proyecto en desarrollo académico. La compilación no pudo verificarse en este entorno porque Gradle necesita descargar su distribución y el entorno de revisión no tiene acceso a `services.gradle.org`.
+## Ejecutar en local
 
-## Funcionalidades
+1. En la carpeta `backend-app`, ejecuta `docker compose up --build`. Espera a que los servicios se registren en Eureka.
+2. Abre `JuntaVecinal-Frontend` en Android Studio, sincroniza Gradle y ejecuta la app en el emulador. El proyecto usa el SDK de Android 37 para compilar.
+3. La app entra por `http://10.0.2.2:8080/api/`, que apunta al Gateway del PC. En Android 17, concede el permiso de red local cuando aparezca.
+4. Entra con `22.222.222-2` y `vecino123`, o registra una cuenta ficticia. Desde **Reservas** puedes crear una solicitud, consultarla, cambiar la fecha y hora o cancelarla.
 
-- Registro de usuarios con nombre, RUT chileno, teléfono, región, comuna y contraseña.
-- Validación y formato de RUT chileno.
-- Inicio de sesión y manejo de sesión local.
-- Registro y consulta de reservas.
-- Validación de fechas, horas, cantidad de asistentes y datos del formulario.
-- Prevención de reservas con horarios superpuestos para una misma fecha.
-- Persistencia local con Room (SQLite).
-- Notificaciones locales de reservas, sujetas al permiso de notificaciones de Android.
+El calendario de Android deshabilita los feriados nacionales que informa Roison. La app también revisa las fechas escritas a mano al crear o reprogramar una reserva. Si el calendario no carga o no cubre el año elegido, Android pide reintentar o elegir otro año antes de guardar.
 
-## Tecnologías
+El Compose de `backend-app` publica MySQL en el puerto `3306` del PC. Si está ocupado, ajusta el puerto publicado del contenedor conservando `mysql-db:3306` dentro de Docker. La URL del Gateway se mantiene.
 
-- Kotlin
-- Android SDK
-- Jetpack Compose y Material 3
-- AndroidX ViewModel y Coroutines/Flow
-- Room
-- Gradle Kotlin DSL y Version Catalog (`gradle/libs.versions.toml`)
-- KSP para generar el código de Room
+Finanzas aparece para Directiva, Tesorería y Secretaría. Directiva y Tesorería pueden registrar movimientos y abonar cuotas previamente asignadas. Las migraciones de `backend-app` crean las dos cuentas de autenticación de ejemplo con rol `VECINO`. Para demostrar Finanzas, prepara una cuenta de prueba con un rol autorizado en `auth-service` y vuelve a iniciar sesión después de cambiarlo.
 
-## Requisitos
+## Rutas que usa Android
 
-- Android Studio compatible con las versiones de Android Gradle Plugin y Gradle definidas en el proyecto.
-- JDK compatible con la versión de Gradle configurada (revisa la configuración de Gradle JDK de Android Studio).
-- Android SDK instalado, incluyendo la plataforma `compileSdk` configurada en `app/build.gradle.kts` (actualmente API 37).
-- Un emulador o dispositivo Android con Android 8.0 (API 26) o superior.
+| Función | Método y ruta por el Gateway |
+| --- | --- |
+| Registro e inicio de sesión | `POST /api/auth/register`, `POST /api/auth/login` |
+| Listar y crear reservas del salón | `GET /api/reserva/reservas/app?usuarioId={id}`, `POST /api/reserva/reservas/app` |
+| Consultar el espacio, reprogramar y cancelar | `GET`, `PUT` y `DELETE /api/reserva/reservas/{id}` |
+| Resumen financiero y movimientos por período | `GET /api/finanzas/reportes`, `GET /api/finanzas/movimientos` |
+| Registrar un movimiento | `POST /api/finanzas/movimientos` |
+| Consultar asignaciones pendientes y registrar un pago | `GET /api/finanzas/cuotas/asignaciones`, `POST /api/finanzas/pagos` |
+| Feriados de Chile en Inicio y Reservas | `GET https://api.roison.cl/feriados.json` |
 
-## Cómo ejecutar
+## Pruebas y compilación
 
-1. Descarga o clona el repositorio.
-2. Abre la carpeta raíz `JuntaVecinal` desde Android Studio.
-3. Espera a que termine la sincronización de Gradle y la descarga de dependencias.
-4. Selecciona un emulador o conecta un dispositivo con depuración USB habilitada.
-5. Ejecuta la configuración `app`.
+Desde `JuntaVecinal-Frontend`, con el SDK de Android configurado, ejecuta lo siguiente.
 
-6. ## Estructura del proyecto
+```sh
+./gradlew :app:assembleDebug :app:createDebugUnitTestCoverageReport
+```
 
-```text
-JuntaVecinal/
-├── app/
-│   ├── src/main/
-│   │   ├── java/com/example/juntavecinal/
-│   │   │   ├── data/          # Configuración de Room
-│   │   │   ├── model/
-│   │   │   │   ├── dao/       # Consultas de base de datos
-│   │   │   │   ├── entity/    # Entidades Usuario y Reserva
-│   │   │   │   └── repository/# Acceso a datos y reglas de negocio
-│   │   │   ├── ui/
-│   │   │   │   ├── components/# Componentes reutilizables
-│   │   │   │   ├── screens/   # Pantallas Compose
-│   │   │   │   └── theme/     # Tema visual
-│   │   │   ├── util/          # RUT, fechas y notificaciones
-│   │   │   ├── viewmodel/     # Estado de pantalla y lógica de presentación
-│   │   │   └── MainActivity.kt
-│   │   ├── src/test/          # Pruebas unitarias
-│   │   └── src/androidTest/   # Pruebas instrumentadas
-│   └── build.gradle.kts
-├── gradle/
-│   └── libs.versions.toml     # Versiones y dependencias
-├── build.gradle.kts
-├── settings.gradle.kts
-└── README.md
+En Windows usa `gradlew.bat`. Las pruebas unitarias usan respuestas simuladas y se ejecutan con el Gateway apagado. El informe queda en `app/build/reports/coverage/test/debug/index.html` y el APK de depuración en `app/build/outputs/apk/debug/app-debug.apk`.

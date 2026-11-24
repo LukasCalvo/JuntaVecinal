@@ -1,20 +1,22 @@
 package com.example.juntavecinal.viewmodel
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
 import androidx.lifecycle.viewModelScope
-import com.example.juntavecinal.data.AppDatabase
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import com.example.juntavecinal.data.remote.SolicitudReserva
 import com.example.juntavecinal.model.ReservaForm
 import com.example.juntavecinal.model.entity.Reserva
+import com.example.juntavecinal.model.repository.CalendarioFeriados
+import com.example.juntavecinal.model.repository.FeriadosRepository
 import com.example.juntavecinal.model.repository.ReservaRepository
+import com.example.juntavecinal.util.Fechas
+import java.time.LocalDate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import java.util.TimeZone
 
 data class ReservaErrores(
     val nombre: String? = null,
@@ -36,17 +38,20 @@ data class ReservaTocados(
     val aceptaReglamento: Boolean = false
 )
 
-class ReservaFormViewModel(application: Application) : AndroidViewModel(application) {
+class ReservaFormViewModel(
+    private val repository: ReservaRepository,
+    private val feriadosRepository: FeriadosRepository = FeriadosRepository.compartido
+) : ViewModel() {
 
     companion object {
-        const val MAX_ASISTENTES = 50
-        private const val PATRON_FECHA = "^\\d{2}/\\d{2}/\\d{4}$"
+        private const val MAX_ASISTENTES_SEDE = 50
         private const val PATRON_HORA = "^([01]\\d|2[0-3]):([0-5]\\d)$"
+        val Factory = viewModelFactory {
+            initializer { ReservaFormViewModel(ReservaRepository.getInstance(checkNotNull(this[APPLICATION_KEY]))) }
+        }
     }
 
-    private val repository = ReservaRepository(
-        AppDatabase.getInstance(application).reservaDao()
-    )
+    private var original: Reserva? = null
 
     private val _formulario = MutableStateFlow(ReservaForm())
     val formulario: StateFlow<ReservaForm> = _formulario.asStateFlow()
@@ -68,35 +73,46 @@ class ReservaFormViewModel(application: Application) : AndroidViewModel(applicat
 
     private val _mensajeGeneral = MutableStateFlow<String?>(null)
 
-    init {
-        viewModelScope.launch {
-            SessionManager.usuarioId.collect { if (it == null) limpiar() }
-        }
-    }
-
     val mensajeGeneral: StateFlow<String?> = _mensajeGeneral.asStateFlow()
 
-    fun textoAFecha(texto: String): Long? {
-        if (!Regex(PATRON_FECHA).matches(texto)) return null
-        return try {
-            SimpleDateFormat("dd/MM/yyyy", Locale.US)
-                .apply {
-                    isLenient = false
-                    timeZone = TimeZone.getTimeZone("UTC")
-                }
-                .parse(texto)
-                ?.time
-        } catch (e: Exception) {
-            null
+    private val _calendario = MutableStateFlow<CalendarioFeriados?>(null)
+    val calendario = _calendario.asStateFlow()
+
+    private val _consultandoFeriados = MutableStateFlow(false)
+    val consultandoFeriados = _consultandoFeriados.asStateFlow()
+
+    fun consultarFeriados() {
+        if (_calendario.value != null || _consultandoFeriados.value) return
+        _consultandoFeriados.value = true
+        viewModelScope.launch {
+            feriadosRepository.obtener().onSuccess { calendario ->
+                _calendario.value = calendario
+                marcarTocado { it }
+            }
+            _consultandoFeriados.value = false
         }
     }
 
-    fun fechaATexto(millis: Long?): String =
-        millis?.let {
-            SimpleDateFormat("dd/MM/yyyy", Locale.US)
-                .apply { timeZone = TimeZone.getTimeZone("UTC") }
-                .format(Date(it))
-        } ?: ""
+    fun preparar(reserva: Reserva?) {
+        limpiar()
+        _guardado.value = false
+        _mostrarExito.value = false
+        _mensajeGeneral.value = null
+        original = reserva
+        if (reserva != null) {
+            _formulario.value = ReservaForm(
+                nombre = reserva.nombre,
+                fechaTexto = Fechas.formatearFecha(reserva.fecha),
+                horaInicioTexto = Fechas.formatearHora(reserva.horaInicio),
+                horaFinTexto = Fechas.formatearHora(reserva.horaFin)
+            )
+        }
+        consultarFeriados()
+    }
+
+    fun textoAFecha(texto: String): Long? = Fechas.leerFecha(texto)?.let(Fechas::fechaPicker)
+
+    fun fechaATexto(millis: Long?): String = millis?.let { Fechas.formatearFecha(Fechas.desdePicker(it)) }.orEmpty()
 
     fun textoAMinutos(texto: String): Int? {
         val m = Regex(PATRON_HORA).matchEntire(texto) ?: return null
@@ -126,7 +142,7 @@ class ReservaFormViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     fun actualizarAsistentes(valor: String) {
-        if (valor.length <= 2 && valor.all { it.isDigit() }) {
+        if (valor.length <= 9 && valor.all { it in '0'..'9' }) {
             _formulario.value = _formulario.value.copy(asistentes = valor)
             marcarTocado { it.copy(asistentes = true) }
         }
@@ -165,27 +181,25 @@ class ReservaFormViewModel(application: Application) : AndroidViewModel(applicat
     private fun errorDeNombre(datos: ReservaForm): String? = when {
         datos.nombre.isBlank() -> "El nombre es obligatorio"
         datos.nombre.trim().length < 3 -> "Debe tener al menos 3 caracteres"
+        datos.nombre.trim().length > 120 -> "Máximo 120 caracteres"
         else -> null
     }
 
-    private fun errorDeFecha(datos: ReservaForm): String? {
-        if (datos.fechaTexto.isBlank()) return "Debes indicar la fecha"
-
-        val millis = textoAFecha(datos.fechaTexto)
-        return when {
-            millis == null ->
-                if (datos.fechaTexto.length == 10) "Fecha inválida (usa DD/MM/AAAA)" else null
-
-            esPasada(datos.fechaTexto) -> "La fecha no puede ser anterior a hoy"
-            else -> null
+    private fun errorDeFecha(datos: ReservaForm, alGuardar: Boolean = false): String? {
+        val texto = datos.fechaTexto
+        if (texto.isBlank()) return "Debes indicar la fecha"
+        val fecha = Fechas.leerFecha(texto)
+        if (fecha == null) {
+            return if (alGuardar || texto.length == 10) "Fecha inválida (usa DD/MM/AAAA)" else null
         }
+
+        if (fecha.isBefore(Fechas.hoy())) return "La fecha no puede ser anterior a hoy"
+        return _calendario.value?.let { errorFeriado(it, fecha) }
     }
 
-    private fun errorFechaAlGuardar(datos: ReservaForm): String? = when {
-        datos.fechaTexto.isBlank() -> "Debes indicar la fecha"
-        textoAFecha(datos.fechaTexto) == null -> "Fecha inválida (usa DD/MM/AAAA)"
-        esPasada(datos.fechaTexto) -> "La fecha no puede ser anterior a hoy"
-        else -> null
+    private fun errorFeriado(calendario: CalendarioFeriados, fecha: LocalDate): String? {
+        if (!calendario.cubre(fecha.year)) return "El calendario de feriados no cubre el año ${fecha.year}."
+        return calendario.nacionales[fecha]?.let { "No se permiten reservas en feriados. $it." }
     }
 
     private fun errorDeHoraInicio(datos: ReservaForm): String? = when {
@@ -211,10 +225,11 @@ class ReservaFormViewModel(application: Application) : AndroidViewModel(applicat
 
     private fun errorDeAsistentes(datos: ReservaForm): String? {
         val numero = datos.asistentes.trim().toIntOrNull()
+        val maximo = MAX_ASISTENTES_SEDE
         return when {
             datos.asistentes.isBlank() -> "Indica la cantidad de asistentes"
             numero == null -> "Debe ingresar un número"
-            numero < 1 || numero > MAX_ASISTENTES -> "Debe estar entre 1 y $MAX_ASISTENTES"
+            numero < 1 || numero > maximo -> "Debe estar entre 1 y $maximo"
             else -> null
         }
     }
@@ -226,13 +241,13 @@ class ReservaFormViewModel(application: Application) : AndroidViewModel(applicat
         if (!datos.aceptaReglamento) "Debes aceptar el reglamento de uso" else null
 
     private fun calcularErrores(datos: ReservaForm): ReservaErrores = ReservaErrores(
-        nombre = errorDeNombre(datos),
+        nombre = if (original == null) errorDeNombre(datos) else null,
         fecha = errorDeFecha(datos),
         horaInicio = errorDeHoraInicio(datos),
         horaFin = errorDeHoraFin(datos),
-        asistentes = errorDeAsistentes(datos),
-        observaciones = errorDeObservaciones(datos),
-        aceptaReglamento = errorDeReglamento(datos)
+        asistentes = if (original == null) errorDeAsistentes(datos) else null,
+        observaciones = if (original == null) errorDeObservaciones(datos) else null,
+        aceptaReglamento = if (original == null) errorDeReglamento(datos) else null
     )
 
     private fun ReservaErrores.soloTocados(tocados: ReservaTocados) = copy(
@@ -250,24 +265,7 @@ class ReservaFormViewModel(application: Application) : AndroidViewModel(applicat
         _errores.value = calcularErrores(_formulario.value).soloTocados(_tocados.value)
     }
 
-    private fun esPasada(fechaTexto: String): Boolean {
-        val hoy = SimpleDateFormat("yyyyMMdd", Locale.US)
-            .apply { timeZone = TimeZone.getTimeZone("America/Santiago") }
-            .format(Date())
-        val fecha =
-            fechaTexto.substring(6, 10) + fechaTexto.substring(3, 5) + fechaTexto.substring(0, 2)
-        return fecha < hoy
-    }
-
-    fun inicioDeHoy(): Long {
-        val hoy = SimpleDateFormat("yyyyMMdd", Locale.US)
-            .apply { timeZone = TimeZone.getTimeZone("America/Santiago") }
-            .format(Date())
-        val texto = hoy.substring(6, 8) + "/" + hoy.substring(4, 6) + "/" + hoy.substring(0, 4)
-        return SimpleDateFormat("dd/MM/yyyy", Locale.US)
-            .apply { timeZone = TimeZone.getTimeZone("UTC") }
-            .parse(texto)!!.time
-    }
+    fun inicioDeHoy(): Long = Fechas.fechaPicker(Fechas.hoy())
 
     fun validarFormulario(): Boolean {
         _tocados.value = ReservaTocados(
@@ -282,7 +280,7 @@ class ReservaFormViewModel(application: Application) : AndroidViewModel(applicat
         val datos = _formulario.value
         val base = calcularErrores(datos)
         _errores.value = base.copy(
-            fecha = errorFechaAlGuardar(datos),
+            fecha = errorDeFecha(datos, alGuardar = true),
             horaInicio = base.horaInicio ?: errorHoraAlGuardar(datos.horaInicioTexto),
             horaFin = base.horaFin ?: errorHoraAlGuardar(datos.horaFinTexto)
         )
@@ -290,44 +288,56 @@ class ReservaFormViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     fun guardar() {
-        if (!validarFormulario()) return
+        if (_guardando.value || !validarFormulario()) return
 
-        val usuarioId = SessionManager.usuarioId.value ?: run {
+        val sesion = SessionManager.sesion.value ?: run {
             _mensajeGeneral.value = "Tu sesión expiró. Vuelve a iniciar sesión."
             return
         }
 
-        val datos = _formulario.value
-        val fecha = textoAFecha(datos.fechaTexto) ?: return
-        val horaInicio = textoAMinutos(datos.horaInicioTexto) ?: return
-        val horaFin = textoAMinutos(datos.horaFinTexto) ?: return
-        val asistentes = datos.asistentes.trim().toIntOrNull() ?: return
+        val formulario = _formulario.value
+        val fecha = checkNotNull(Fechas.leerFecha(formulario.fechaTexto))
+        val reserva = original
+        _guardando.value = true
+        _mensajeGeneral.value = null
 
         viewModelScope.launch {
-            _guardando.value = true
-            _mensajeGeneral.value = null
+            val calendario = feriadosRepository.obtener().getOrElse {
+                _mensajeGeneral.value = "No pudimos consultar los feriados. Vuelve a intentar para guardar la reserva."
+                _guardando.value = false
+                return@launch
+            }
+            _calendario.value = calendario
+            errorFeriado(calendario, fecha)?.let { error ->
+                _errores.value = _errores.value.copy(fecha = error)
+                _guardando.value = false
+                return@launch
+            }
 
-            val reserva = Reserva(
-                usuarioId = usuarioId,
-                nombre = datos.nombre.trim(),
-                fecha = fecha,
-                horaInicioMin = horaInicio,
-                horaFinMin = horaFin,
-                asistentes = asistentes,
-                observaciones = datos.observaciones.trim(),
-                requiereProyector = datos.requiereProyector,
-                aceptaReglamento = datos.aceptaReglamento
-            )
-
-            val error = repository.guardar(reserva)
+            val resultado = SessionManager.solicitar(sesion) {
+                if (reserva == null) {
+                    val datos = SolicitudReserva(
+                        usuarioId = sesion.usuario.id,
+                        nombre = formulario.nombre.trim(),
+                        fecha = Fechas.fechaPicker(fecha),
+                        horaInicioMin = checkNotNull(textoAMinutos(formulario.horaInicioTexto)),
+                        horaFinMin = checkNotNull(textoAMinutos(formulario.horaFinTexto)),
+                        asistentes = formulario.asistentes.trim().toInt(),
+                        observaciones = formulario.observaciones.trim(),
+                        requiereProyector = formulario.requiereProyector,
+                        aceptaReglamento = formulario.aceptaReglamento
+                    )
+                    repository.crear(sesion, datos)
+                } else {
+                    repository.editar(sesion, reserva, fecha.toString(), formulario.horaInicioTexto, formulario.horaFinTexto)
+                }
+            }
             _guardando.value = false
 
-            if (error == null) {
+            resultado.onSuccess {
                 limpiar()
                 _guardado.value = true
-            } else {
-                _mensajeGeneral.value = error
-            }
+            }.onFailure { _mensajeGeneral.value = it.message }
         }
     }
 

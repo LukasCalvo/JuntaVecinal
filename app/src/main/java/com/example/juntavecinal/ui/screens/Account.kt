@@ -9,17 +9,13 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.juntavecinal.viewmodel.SessionManager
+import com.example.juntavecinal.data.remote.Perfil
 
 
 @Composable
-fun ProfileScreen(onCerrarSesion: () -> Unit, modifier: Modifier = Modifier) {
-    val nombre by SessionManager.nombre.collectAsState()
-
+fun ProfileScreen(perfil: Perfil, onCerrarSesion: () -> Unit, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -27,7 +23,8 @@ fun ProfileScreen(onCerrarSesion: () -> Unit, modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text("Mi perfil", style = MaterialTheme.typography.headlineMedium)
-        Text(nombre.orEmpty(), style = MaterialTheme.typography.titleMedium)
+        Text(perfil.nombre, style = MaterialTheme.typography.titleMedium)
+        Text(perfil.rol.name.lowercase().replaceFirstChar { it.uppercase() })
         Button(onClick = onCerrarSesion, modifier = Modifier.fillMaxWidth()) {
             Text("Cerrar sesión")
         }

@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.juntavecinal.ui.components.CampoFormateado
 import com.example.juntavecinal.ui.components.iconoCampo
+import com.example.juntavecinal.ui.components.rememberAccesoBackend
 import com.example.juntavecinal.util.Rut
 import com.example.juntavecinal.viewmodel.LoginViewModel
 
@@ -48,6 +49,9 @@ fun LoginScreen(
     viewModel: LoginViewModel = viewModel()
 ) {
     val state = viewModel.uiState
+    val ingresar = rememberAccesoBackend(
+        { viewModel.login(onLoginSuccess) }, viewModel::informarError
+    )
     var verPassword by remember { mutableStateOf(false) }
 
     Column(
@@ -124,7 +128,7 @@ fun LoginScreen(
         }
 
         Button(
-            onClick = { viewModel.login(onLoginSuccess) },
+            onClick = ingresar,
             enabled = !state.cargando,
             modifier = Modifier.fillMaxWidth()
         ) {

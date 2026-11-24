@@ -1,30 +1,29 @@
 package com.example.juntavecinal.model.dao
 
 import androidx.room.Dao
-import androidx.room.Delete
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import com.example.juntavecinal.model.entity.Reserva
+import androidx.room.Transaction
+import androidx.room.Upsert
+import com.example.juntavecinal.model.entity.ReservaCache
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ReservaDao {
-    @Query("SELECT * FROM reservas ORDER BY fecha DESC, horaInicioMin ASC")
-    fun observeAll(): Flow<List<Reserva>>
+    @Query("SELECT * FROM reservas_gateway WHERE cuentaId = :cuentaId ORDER BY fecha DESC, horaInicio ASC, id DESC")
+    fun observar(cuentaId: Long): Flow<List<ReservaCache>>
 
-    @Query("SELECT * FROM reservas WHERE usuarioId = :usuarioId ORDER BY fecha DESC")
-    fun observeByUser(usuarioId: Int): Flow<List<Reserva>>
+    @Query("DELETE FROM reservas_gateway WHERE cuentaId = :cuentaId")
+    suspend fun borrarCache(cuentaId: Long)
 
-    @Query("SELECT * FROM reservas WHERE fecha = :fecha")
-    suspend fun buscarPorDia(fecha: Long): List<Reserva>
+    @Upsert
+    suspend fun guardar(reservas: List<ReservaCache>)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(reserva: Reserva)
+    @Query("UPDATE reservas_gateway SET estado = 'CANCELADA' WHERE cuentaId = :cuentaId AND id = :id")
+    suspend fun marcarCancelada(cuentaId: Long, id: Long)
 
-    @Query("SELECT * FROM reservas WHERE usuarioId = :usuarioId AND fecha >= :desde ORDER BY fecha ASC, horaInicioMin ASC")
-    fun observeProximas(usuarioId: Int, desde: Long): Flow<List<Reserva>>
-
-    @Delete
-    suspend fun delete(reserva: Reserva)
+    @Transaction
+    suspend fun reemplazar(cuentaId: Long, reservas: List<ReservaCache>) {
+        borrarCache(cuentaId)
+        guardar(reservas)
+    }
 }

@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.juntavecinal.ui.components.CampoFormateado
 import com.example.juntavecinal.ui.components.iconoCampo
+import com.example.juntavecinal.ui.components.rememberAccesoBackend
 import com.example.juntavecinal.util.Rut
 import com.example.juntavecinal.viewmodel.RegisterViewModel
 
@@ -49,6 +50,9 @@ fun RegisterScreen(
     viewModel: RegisterViewModel = viewModel()
 ) {
     val state = viewModel.uiState
+    val registrar = rememberAccesoBackend(
+        { viewModel.registrar(onRegistroExitoso) }, viewModel::informarError
+    )
     var verPassword by remember { mutableStateOf(false) }
     var verConfirmacion by remember { mutableStateOf(false) }
     var regionAbierta by remember { mutableStateOf(false) }
@@ -293,7 +297,7 @@ fun RegisterScreen(
 
         Spacer(Modifier.height(4.dp))
         Button(
-            onClick = { viewModel.registrar(onRegistroExitoso) },
+            onClick = registrar,
             enabled = !state.enviando,
             modifier = Modifier.fillMaxWidth()
         ) {

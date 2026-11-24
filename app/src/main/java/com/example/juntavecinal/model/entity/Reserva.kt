@@ -1,32 +1,27 @@
 package com.example.juntavecinal.model.entity
 
-import androidx.room.Entity
-import androidx.room.ForeignKey
-import androidx.room.Index
-import androidx.room.PrimaryKey
+import com.example.juntavecinal.data.remote.Perfil
 
-@Entity(
-    tableName = "reservas",
-    foreignKeys = [
-        ForeignKey(
-            entity = Usuario::class,
-            parentColumns = ["id"],
-            childColumns = ["usuarioId"],
-            onDelete = ForeignKey.CASCADE
-        )
-    ],
-    indices = [Index("usuarioId")]
-)
 data class Reserva(
-    @PrimaryKey(autoGenerate = true) val id: Int = 0,
-    val usuarioId: Int,
+    val id: Long,
+    val usuarioId: Long,
     val nombre: String,
-    val fecha: Long,
-    val horaInicioMin: Int,
-    val horaFinMin: Int,
+    val fecha: String,
+    val horaInicio: String,
+    val horaFin: String,
     val asistentes: Int,
-    val observaciones: String = "",
-    val requiereProyector: Boolean = false,
-    val aceptaReglamento: Boolean = false,
-    val createdAt: Long = System.currentTimeMillis()
-)
+    val observaciones: String?,
+    val requiereProyector: Boolean,
+    val aceptaReglamento: Boolean,
+    val estado: String
+) {
+    fun modificablePor(usuario: Perfil): Boolean = usuario.id == usuarioId && estado != "CANCELADA"
+
+    val estadoVisible: String
+        get() = when (estado) {
+            "PENDIENTE" -> "Pendiente"
+            "CONFIRMADA" -> "Confirmada"
+            "CANCELADA" -> "Cancelada"
+            else -> estado
+        }
+}

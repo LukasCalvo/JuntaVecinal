@@ -1,37 +1,45 @@
 package com.example.juntavecinal.viewmodel
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.juntavecinal.data.AppDatabase
 import com.example.juntavecinal.model.entity.Reserva
-import com.example.juntavecinal.model.repository.ReservaRepository
+import com.example.juntavecinal.model.repository.FeriadosRepository
 import com.example.juntavecinal.util.Fechas
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
-class HomeViewModel(application: Application) : AndroidViewModel(application) {
-    private val repository = ReservaRepository(
-        AppDatabase.getInstance(application).reservaDao()
-    )
+data class EstadoFeriadosInicio(
+    val cargando: Boolean = false,
+    val fecha: LocalDate? = null,
+    val nombre: String? = null
+)
 
-    /** Reservas del usuario que aún no terminan, ordenadas: la primera es la próxima. */
-    @OptIn(ExperimentalCoroutinesApi::class)
-    val proximas: StateFlow<List<Reserva>> = SessionManager.usuarioId
-        .flatMapLatest { id ->
-            if (id == null) flowOf(emptyList())
-            else repository.proximas(id, Fechas.inicioDeHoy())
+class HomeViewModel(
+    private val feriadosRepository: FeriadosRepository = FeriadosRepository.compartido
+) : ViewModel() {
+    private val _feriados = MutableStateFlow(EstadoFeriadosInicio())
+    val feriados = _feriados.asStateFlow()
+
+    fun consultarFeriados() {
+        if (_feriados.value.cargando) return
+        _feriados.value = EstadoFeriadosInicio(cargando = true)
+        viewModelScope.launch {
+            val proximo = feriadosRepository.obtener().getOrNull()?.proximo(Fechas.hoy())
+            _feriados.value = EstadoFeriadosInicio(fecha = proximo?.key, nombre = proximo?.value)
         }
-        .map { lista ->
-            val hoy = Fechas.inicioDeHoy()
-            val ahora = Fechas.minutosActuales()
-            // Si es hoy, descarta las que ya terminaron
-            lista.filter { it.fecha > hoy || it.horaFinMin > ahora }
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    }
+
+    fun proximas(
+        reservas: List<Reserva>, usuarioId: Long, ahora: LocalDateTime = LocalDateTime.now(Fechas.SANTIAGO)
+    ): List<Reserva> {
+        val hoy = ahora.toLocalDate().toString()
+        return reservas.filter { reserva ->
+            reserva.usuarioId == usuarioId && reserva.estado != "CANCELADA" &&
+                (reserva.fecha > hoy || reserva.fecha == hoy && LocalTime.parse(reserva.horaFin) > ahora.toLocalTime())
+        }.sortedWith(compareBy(Reserva::fecha, Reserva::horaInicio))
+    }
 }

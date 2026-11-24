@@ -59,7 +59,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.juntavecinal.ui.components.CampoFormateado
 import com.example.juntavecinal.ui.components.SelectableDiasDesde
 import com.example.juntavecinal.ui.components.iconoCampo
@@ -74,8 +73,10 @@ private enum class CampoHora { INICIO, FIN }
 @Composable
 fun ReservaFormScreen(
     onReservaCreada: () -> Unit,
+    onVolver: () -> Unit,
+    editando: Boolean,
+    viewModel: ReservaFormViewModel,
     modifier: Modifier = Modifier,
-    viewModel: ReservaFormViewModel = viewModel()
 ) {
     val formulario by viewModel.formulario.collectAsState()
     val errores by viewModel.errores.collectAsState()
@@ -84,6 +85,8 @@ fun ReservaFormScreen(
     val guardado by viewModel.guardado.collectAsState()
     val mostrarExito by viewModel.mostrarExito.collectAsState()
     val mensajeGeneral by viewModel.mensajeGeneral.collectAsState()
+    val calendario by viewModel.calendario.collectAsState()
+    val consultandoFeriados by viewModel.consultandoFeriados.collectAsState()
 
     var mostrarDatePicker by remember { mutableStateOf(false) }
     var horaEnEdicion by remember { mutableStateOf<CampoHora?>(null) }
@@ -103,7 +106,10 @@ fun ReservaFormScreen(
         try {
             delay(1400)
             viewModel.ocultarAvisoExito()
-            Notificador.mostrar(context, "Reserva creada", "Tu reserva quedó registrada.")
+            Notificador.mostrar(
+                context, if (editando) "Reserva actualizada" else "Solicitud creada",
+                "Revisa su estado en Reservas."
+            )
             onReservaCreada()
         } finally {
             viewModel.ocultarAvisoExito()
@@ -125,23 +131,27 @@ fun ReservaFormScreen(
                     .padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text("Nueva reserva", style = MaterialTheme.typography.headlineMedium)
+                TextButton(onClick = onVolver, enabled = !guardando) { Text("Volver") }
+                Text(if (editando) "Editar reserva" else "Nueva reserva", style = MaterialTheme.typography.headlineMedium)
+                Text(if (editando) "Ajusta la fecha y el horario de ${formulario.nombre}." else "Salón comunitario")
                 Spacer(Modifier.height(4.dp))
 
-                // ----- Nombre (String) -----
-                OutlinedTextField(
-                    value = formulario.nombre,
-                    onValueChange = viewModel::actualizarNombre,
-                    label = { Text("Nombre del solicitante") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    isError = errores.nombre != null,
-                    supportingText = { errores.nombre?.let { Text(it) } },
-                    leadingIcon = iconoCampo(
-                        error = errores.nombre,
-                        valido = tocados.nombre && errores.nombre == null && formulario.nombre.isNotBlank()
+                if (!editando) {
+                    // ----- Nombre (String) -----
+                    OutlinedTextField(
+                        value = formulario.nombre,
+                        onValueChange = viewModel::actualizarNombre,
+                        label = { Text("Nombre del solicitante") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        isError = errores.nombre != null,
+                        supportingText = { errores.nombre?.let { Text(it) } },
+                        leadingIcon = iconoCampo(
+                            error = errores.nombre,
+                            valido = tocados.nombre && errores.nombre == null && formulario.nombre.isNotBlank()
+                        )
                     )
-                )
+                }
 
                 // ----- Fecha (Date): se escribe o se elige del calendario -----
                 CampoFormateado(
@@ -149,17 +159,20 @@ fun ReservaFormScreen(
                     onValorChange = viewModel::actualizarFechaTexto,
                     formatear = viewModel::formatearFechaEntrada,
                     label = "Fecha (DD/MM/AAAA)",
-                    placeholder = "25/12/2026",
+                    placeholder = "DD/MM/AAAA",
                     modifier = Modifier.fillMaxWidth(),
                     isError = errores.fecha != null,
                     supportingText = errores.fecha,
                     leadingIcon = iconoCampo(
                         error = errores.fecha,
-                        valido = tocados.fecha && errores.fecha == null &&
+                        valido = calendario != null && tocados.fecha && errores.fecha == null &&
                                 viewModel.textoAFecha(formulario.fechaTexto) != null
                     ),
                     trailingIcon = {
-                        IconButton(onClick = { mostrarDatePicker = true }) {
+                        IconButton(
+                            onClick = { mostrarDatePicker = true },
+                            enabled = calendario != null && !guardando
+                        ) {
                             Icon(
                                 Icons.Filled.CalendarMonth,
                                 contentDescription = "Elegir del calendario"
@@ -167,6 +180,16 @@ fun ReservaFormScreen(
                         }
                     }
                 )
+
+                if (calendario == null) {
+                    if (consultandoFeriados) {
+                        Text("Consultando feriados…", style = MaterialTheme.typography.bodySmall)
+                    } else {
+                        TextButton(onClick = viewModel::consultarFeriados, enabled = !guardando) {
+                            Text("Reintentar consulta de feriados")
+                        }
+                    }
+                }
 
                 // ----- Horas (HH:MM): se escriben o se eligen del reloj -----
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -218,71 +241,73 @@ fun ReservaFormScreen(
                     )
                 }
 
-                // ----- Asistentes (Int) -----
-                OutlinedTextField(
-                    value = formulario.asistentes,
-                    onValueChange = viewModel::actualizarAsistentes,
-                    label = { Text("Cantidad de asistentes") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    isError = errores.asistentes != null,
-                    supportingText = {
-                        Text(
-                            errores.asistentes
-                                ?: "Entre 1 y ${ReservaFormViewModel.MAX_ASISTENTES} personas"
+                if (!editando) {
+                    // ----- Asistentes (Int) -----
+                    OutlinedTextField(
+                        value = formulario.asistentes,
+                        onValueChange = viewModel::actualizarAsistentes,
+                        label = { Text("Cantidad de asistentes") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        isError = errores.asistentes != null,
+                        supportingText = {
+                            Text(
+                                errores.asistentes
+                                    ?: "Entre 1 y 50 personas"
+                            )
+                        },
+                        leadingIcon = iconoCampo(
+                            error = errores.asistentes,
+                            valido = tocados.asistentes && errores.asistentes == null &&
+                                    formulario.asistentes.isNotBlank()
                         )
-                    },
-                    leadingIcon = iconoCampo(
-                        error = errores.asistentes,
-                        valido = tocados.asistentes && errores.asistentes == null &&
-                                formulario.asistentes.isNotBlank()
                     )
-                )
 
-                // ----- Observaciones (String) -----
-                OutlinedTextField(
-                    value = formulario.observaciones,
-                    onValueChange = viewModel::actualizarObservaciones,
-                    label = { Text("Observaciones (opcional)") },
-                    modifier = Modifier.fillMaxWidth(),
-                    minLines = 3,
-                    isError = errores.observaciones != null,
-                    supportingText = { errores.observaciones?.let { Text(it) } }
-                )
+                    // ----- Observaciones (String) -----
+                    OutlinedTextField(
+                        value = formulario.observaciones,
+                        onValueChange = viewModel::actualizarObservaciones,
+                        label = { Text("Observaciones (opcional)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 3,
+                        isError = errores.observaciones != null,
+                        supportingText = { errores.observaciones?.let { Text(it) } }
+                    )
 
-                // ----- Switch: proyector -----
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Requiere proyector")
-                    Switch(
-                        checked = formulario.requiereProyector,
-                        onCheckedChange = viewModel::actualizarRequiereProyector
-                    )
-                }
+                    // ----- Switch: proyector -----
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Requiere proyector")
+                        Switch(
+                            checked = formulario.requiereProyector,
+                            onCheckedChange = viewModel::actualizarRequiereProyector
+                        )
+                    }
 
-                // ----- Checkbox: reglamento -----
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(
-                        checked = formulario.aceptaReglamento,
-                        onCheckedChange = viewModel::actualizarAceptaReglamento
-                    )
-                    Text("Acepto el reglamento de uso")
-                }
-                AnimatedVisibility(
-                    visible = errores.aceptaReglamento != null,
-                    enter = expandVertically() + fadeIn(),
-                    exit = shrinkVertically() + fadeOut()
-                ) {
-                    Text(
-                        text = errores.aceptaReglamento.orEmpty(),
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(start = 12.dp)
-                    )
+                    // ----- Checkbox: reglamento -----
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            checked = formulario.aceptaReglamento,
+                            onCheckedChange = viewModel::actualizarAceptaReglamento
+                        )
+                        Text("Acepto el reglamento de uso")
+                    }
+                    AnimatedVisibility(
+                        visible = errores.aceptaReglamento != null,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut()
+                    ) {
+                        Text(
+                            text = errores.aceptaReglamento.orEmpty(),
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(start = 12.dp)
+                        )
+                    }
                 }
 
                 // ----- Mensaje general (choque de horarios) -----
@@ -345,26 +370,26 @@ fun ReservaFormScreen(
         }
     }
 
-    // ----- Calendario -----
-    if (mostrarDatePicker) {
+    val calendarioDisponible = calendario
+    if (mostrarDatePicker && calendarioDisponible != null) {
         val hoy = viewModel.inicioDeHoy()
-        if (formulario.fechaTexto.isBlank()) {
-            viewModel.actualizarFechaTexto(viewModel.fechaATexto(hoy))
-        }
-
+        val dias = remember(hoy, calendarioDisponible) { SelectableDiasDesde(hoy, calendarioDisponible) }
+        val fecha = viewModel.textoAFecha(formulario.fechaTexto)
         val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = viewModel.textoAFecha(formulario.fechaTexto) ?: hoy,
-            selectableDates = SelectableDiasDesde(hoy)
+            initialSelectedDateMillis = (fecha ?: hoy).takeIf(dias::isSelectableDate),
+            selectableDates = dias
         )
         DatePickerDialog(
             onDismissRequest = { mostrarDatePicker = false },
             confirmButton = {
-                TextButton(onClick = {
-                    viewModel.actualizarFechaTexto(
-                        viewModel.fechaATexto(datePickerState.selectedDateMillis)
-                    )
-                    mostrarDatePicker = false
-                }) { Text("Aceptar") }
+                val elegida = datePickerState.selectedDateMillis
+                TextButton(
+                    onClick = {
+                        viewModel.actualizarFechaTexto(viewModel.fechaATexto(elegida))
+                        mostrarDatePicker = false
+                    },
+                    enabled = elegida?.let(dias::isSelectableDate) == true
+                ) { Text("Aceptar") }
             },
             dismissButton = {
                 TextButton(onClick = { mostrarDatePicker = false }) { Text("Cancelar") }

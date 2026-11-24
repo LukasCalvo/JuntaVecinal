@@ -1,23 +1,25 @@
 package com.example.juntavecinal.viewmodel
 
+import com.example.juntavecinal.data.remote.ErrorApi
+import com.example.juntavecinal.data.remote.Sesion
+import com.example.juntavecinal.data.remote.peticion
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 object SessionManager {
-    private val _usuarioId = MutableStateFlow<Int?>(null)
-    val usuarioId: StateFlow<Int?> = _usuarioId.asStateFlow()
+    private val _sesion = MutableStateFlow<Sesion?>(null)
+    val sesion = _sesion.asStateFlow()
 
-    private val _nombre = MutableStateFlow<String?>(null)
-    val nombre: StateFlow<String?> = _nombre.asStateFlow()
-
-    fun iniciarSesion(id: Int, nombre: String) {
-        _usuarioId.value = id
-        _nombre.value = nombre
+    fun iniciarSesion(sesion: Sesion) {
+        _sesion.value = sesion
     }
 
     fun cerrarSesion() {
-        _usuarioId.value = null
-        _nombre.value = null
+        _sesion.value = null
     }
+
+    internal suspend fun <T> solicitar(sesion: Sesion, accion: suspend () -> T): Result<T> =
+        peticion(accion).onFailure { error ->
+            if (error is ErrorApi && error.codigo == 401) _sesion.compareAndSet(sesion, null)
+        }
 }

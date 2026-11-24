@@ -1,12 +1,14 @@
 package com.example.juntavecinal.viewmodel
 
-import android.app.Application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.juntavecinal.data.AppDatabase
+import com.example.juntavecinal.data.remote.Api
+import com.example.juntavecinal.data.remote.ErrorApi
+import com.example.juntavecinal.data.remote.Registro
+import com.example.juntavecinal.data.remote.peticion
 import com.example.juntavecinal.model.Ubicaciones
 import com.example.juntavecinal.model.repository.UsuarioRepository
 import com.example.juntavecinal.util.Rut
@@ -36,16 +38,14 @@ data class RegistroUiState(
     val enviando: Boolean = false
 )
 
-class RegisterViewModel(application: Application) : AndroidViewModel(application) {
+class RegisterViewModel(
+    private val repository: UsuarioRepository = UsuarioRepository(Api.auth)
+) : ViewModel() {
 
     companion object {
         const val PASSWORD_MINIMA = 6
         const val LARGO_TELEFONO = 9
     }
-
-    private val repository = UsuarioRepository(
-        AppDatabase.getInstance(application).usuarioDao()
-    )
 
     private val ubicaciones = Ubicaciones()
 
@@ -140,6 +140,7 @@ class RegisterViewModel(application: Application) : AndroidViewModel(application
         return when {
             nombre.isBlank() -> "Ingresa tu nombre completo"
             nombre.trim().length < 3 -> "Debe tener al menos 3 caracteres"
+            nombre.trim().length > 120 -> "Máximo 120 caracteres"
             else -> null
         }
     }
@@ -173,6 +174,7 @@ class RegisterViewModel(application: Application) : AndroidViewModel(application
         return when {
             password.isBlank() -> "Crea una contraseña"
             password.length < PASSWORD_MINIMA -> "Debe tener al menos $PASSWORD_MINIMA caracteres"
+            password.length > 128 -> "Máximo 128 caracteres"
             else -> null
         }
     }
@@ -198,44 +200,32 @@ class RegisterViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun registrar(onExito: () -> Unit) {
+        if (uiState.enviando) return
         val errores = calcularErrores()
         if (errores != RegistroErrores()) {
             uiState = uiState.copy(errores = errores, errorGeneral = null)
             return
         }
 
+        val datos = Registro(uiState.rut, uiState.nombre.trim(), uiState.telefono,
+            uiState.region, uiState.comuna, uiState.password)
+        uiState = uiState.copy(enviando = true, errorGeneral = null)
         viewModelScope.launch {
-            uiState = uiState.copy(enviando = true, errorGeneral = null)
-
-            val creado = repository.crearUsuario(
-                rut = uiState.rut,
-                nombre = uiState.nombre.trim(),
-                telefono = uiState.telefono.trim(),
-                region = uiState.region,
-                comuna = uiState.comuna,
-                password = uiState.password
-            )
-
-            if (!creado) {
-                uiState = uiState.copy(
-                    enviando = false,
-                    errores = errores.copy(rut = "Ese RUT ya está registrado")
-                )
-                return@launch
+            peticion { repository.registrar(datos) }.onSuccess { sesion ->
+                SessionManager.iniciarSesion(sesion)
+                uiState = RegistroUiState()
+                onExito()
+            }.onFailure { error ->
+                uiState = if (error is ErrorApi && error.codigo == 400 && error.message == "Ese RUT ya está registrado") {
+                    uiState.copy(enviando = false, errores = errores.copy(rut = "Ese RUT ya está registrado"))
+                } else {
+                    uiState.copy(enviando = false, errorGeneral = error.message)
+                }
             }
-
-            val usuario = repository.login(uiState.rut, uiState.password)
-            if (usuario == null) {
-                uiState = uiState.copy(
-                    enviando = false,
-                    errorGeneral = "No se pudo iniciar sesión con la cuenta creada"
-                )
-                return@launch
-            }
-
-            SessionManager.iniciarSesion(usuario.id, usuario.nombre)
-            uiState = RegistroUiState()
-            onExito()
         }
+    }
+
+    fun informarError(mensaje: String) {
+        uiState = uiState.copy(errorGeneral = mensaje)
     }
 }

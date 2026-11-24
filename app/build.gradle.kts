@@ -21,6 +21,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            enableUnitTestCoverage = true
+        }
         release {
             optimization {
                 enable = false
@@ -50,8 +53,11 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
+    implementation(libs.retrofit.core)
+    implementation(libs.retrofit.gson)
     ksp(libs.androidx.room.compiler)
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)

@@ -1,36 +1,39 @@
 package com.example.juntavecinal.util
 
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Date
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
+import java.time.format.ResolverStyle
 import java.util.Locale
-import java.util.TimeZone
 
 object Fechas {
-    private val CHILE = TimeZone.getTimeZone("America/Santiago")
-    private val UTC = TimeZone.getTimeZone("UTC")
-    const val DIA_MS = 86_400_000L
+    val SANTIAGO: ZoneId = ZoneId.of("America/Santiago")
+    private const val DIA_MS = 86_400_000L
+    private val pantalla = DateTimeFormatter.ofPattern("dd/MM/uuuu", Locale.ROOT)
+        .withResolverStyle(ResolverStyle.STRICT)
 
-    /** Medianoche UTC del día actual en Chile (mismo formato que Reserva.fecha). */
-    fun inicioDeHoy(): Long {
-        val chile = Calendar.getInstance(CHILE)
-        return Calendar.getInstance(UTC).apply {
-            clear()
-            set(
-                chile.get(Calendar.YEAR),
-                chile.get(Calendar.MONTH),
-                chile.get(Calendar.DAY_OF_MONTH)
-            )
-        }.timeInMillis
+    fun hoy(): LocalDate = LocalDate.now(SANTIAGO)
+
+    fun leerFecha(texto: String): LocalDate? = try {
+        LocalDate.parse(texto, pantalla)
+    } catch (_: DateTimeParseException) {
+        null
     }
 
-    fun minutosActuales(): Int {
-        val ahora = Calendar.getInstance(CHILE)
-        return ahora.get(Calendar.HOUR_OF_DAY) * 60 + ahora.get(Calendar.MINUTE)
+    fun leerIso(texto: String): LocalDate? = try {
+        LocalDate.parse(texto)
+    } catch (_: DateTimeParseException) {
+        null
     }
 
-    fun formatearFecha(millis: Long): String =
-        SimpleDateFormat("dd/MM/yyyy", Locale.US).apply { timeZone = UTC }.format(Date(millis))
+    fun fechaPicker(fecha: LocalDate): Long = fecha.toEpochDay() * DIA_MS
 
-    fun formatearHora(minutos: Int): String = "%02d:%02d".format(minutos / 60, minutos % 60)
+    fun desdePicker(millis: Long): LocalDate = LocalDate.ofEpochDay(Math.floorDiv(millis, DIA_MS))
+
+    fun formatearFecha(fecha: LocalDate): String = fecha.format(pantalla)
+
+    fun formatearFecha(iso: String): String = formatearFecha(LocalDate.parse(iso))
+
+    fun formatearHora(hora: String): String = hora.take(5)
 }
