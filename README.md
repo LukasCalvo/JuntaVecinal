@@ -32,7 +32,7 @@ Finanzas aparece para Directiva, Tesorería y Secretaría. Directiva y Tesorerí
 Desde `JuntaVecinal-Frontend`, con el SDK de Android configurado, ejecuta lo siguiente.
 
 ```sh
-./gradlew :app:assembleDebug :app:createDebugUnitTestCoverageReport
+./gradlew :app:assembleDebug :app:createDebugUnitTestCoverageReport :app:testDebugUnitTest
 ```
 
 En Windows usa `gradlew.bat`. Las pruebas unitarias usan respuestas simuladas y se ejecutan con el Gateway apagado. El informe queda en `app/build/reports/coverage/test/debug/index.html` y el APK de depuración en `app/build/outputs/apk/debug/app-debug.apk`.
